@@ -8,16 +8,16 @@ plugins {
 
 android {
     namespace = "com.gal"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.gal"
         minSdk = 30
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 3
-        versionName = "3.0.0"
+        versionName = "3.0.1"
 
-        // Pixel 9 Pro Fold is arm64 only — no need for universal APK
+        // meow meow meow meow
         ndk {
             abiFilters += "arm64-v8a"
         }
@@ -75,7 +75,7 @@ dependencies {
     implementation(libs.compose.foundation)
     debugImplementation(libs.compose.ui.tooling)
 
-    // Activity / Lifecycle
+    // Activity / Hellcycle
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.viewmodel.compose)

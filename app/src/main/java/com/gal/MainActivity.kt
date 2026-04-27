@@ -1,7 +1,9 @@
 package com.gal
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -45,19 +47,30 @@ import com.gal.ui.screens.settings.SettingsViewModel
 import com.gal.ui.theme.GalTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
     private val settingsViewModel: SettingsViewModel by viewModels()
 
+    // Holds the URI from an external ACTION_VIEW intent so the composition can react to it.
+    // Reset to null after the navigation is consumed so the same URI can be re-opened later.
+    private val viewIntentUri = MutableStateFlow<Uri?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        if (intent?.action == Intent.ACTION_VIEW && intent.data != null) {
+            viewIntentUri.value = intent.data
+        }
+
         setContent {
             val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
-            
+            val intentUri by viewIntentUri.collectAsStateWithLifecycle()
+
             GalTheme(amoled = settingsState.amoledBlack) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -80,7 +93,10 @@ class MainActivity : FragmentActivity() {
                         }
 
                         if (isUnlocked || !settingsState.biometricLock) {
-                            GalApp()
+                            GalApp(
+                                intentUri = intentUri,
+                                onIntentConsumed = { viewIntentUri.value = null },
+                            )
                         } else {
                             Box(
                                 modifier = Modifier.fillMaxSize().navigationBarsPadding().statusBarsPadding(),
@@ -88,8 +104,8 @@ class MainActivity : FragmentActivity() {
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(
-                                        Icons.Outlined.Lock, 
-                                        null, 
+                                        Icons.Outlined.Lock,
+                                        null,
                                         modifier = Modifier.size(72.dp),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
@@ -99,7 +115,7 @@ class MainActivity : FragmentActivity() {
                                         style = MaterialTheme.typography.headlineSmall,
                                         modifier = Modifier.padding(bottom = 32.dp)
                                     )
-                                    Button(onClick = { 
+                                    Button(onClick = {
                                         authenticate { success -> if (success) isUnlocked = true }
                                     }) {
                                         Text("Unlock with Biometrics")
@@ -113,6 +129,15 @@ class MainActivity : FragmentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    // singleTask activities receive re-delivery here instead of onCreate when already running
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
+            viewIntentUri.value = intent.data
         }
     }
 
@@ -148,7 +173,7 @@ class MainActivity : FragmentActivity() {
 }
 
 @Composable
-private fun GalApp() {
+private fun GalApp(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
     val context = LocalContext.current
     var hasPermission by remember {
         mutableStateOf(
@@ -162,7 +187,7 @@ private fun GalApp() {
     ) { results -> hasPermission = results.values.any { it } }
 
     if (hasPermission) {
-        GalNavHost()
+        GalNavHost(intentUri = intentUri, onIntentConsumed = onIntentConsumed)
     } else {
         PermissionScreen(onRequest = { launcher.launch(requiredPermissions()) })
     }

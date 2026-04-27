@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Random
+import java.security.SecureRandom
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -85,6 +85,10 @@ class MediaRepository @Inject constructor(
         } catch (e: Exception) { null }
     }
 
+    // Best-effort only: NAND wear-levelling means the OS may redirect writes to
+    // different physical blocks, so overwritten bytes are not guaranteed to be
+    // unrecoverable on flash storage. This reduces casual recovery risk but is
+    // not a substitute for full-disk encryption (which Android already provides).
     private fun secureOverwrite(uri: Uri) {
         try {
             context.contentResolver.openFileDescriptor(uri, "rw")?.use { pfd ->
@@ -92,10 +96,10 @@ class MediaRepository @Inject constructor(
                 if (size > 0) {
                     val os = FileOutputStream(pfd.fileDescriptor)
                     val buffer = ByteArray(64 * 1024)
-                    val random = Random()
+                    val random = SecureRandom()
                     var written = 0L
-                    
-                    // Pass 1: Random data
+
+                    // Pass 1: cryptographically random data
                     while (written < size) {
                         val toWrite = Math.min(buffer.size.toLong(), size - written).toInt()
                         random.nextBytes(buffer)
@@ -129,5 +133,51 @@ class MediaRepository @Inject constructor(
         context.contentResolver.openInputStream(media.uri)?.use { it.copyTo(dest.outputStream()) }
             ?: throw IllegalStateException("Cannot open ${media.uri}")
         dest
+    }
+
+    /** Copies external URIs into Pictures/Gal via MediaStore. Returns the number successfully imported. */
+    suspend fun importFiles(uris: List<Uri>): Int = withContext(Dispatchers.IO) {
+        val resolver = context.contentResolver
+        var count = 0
+        for (uri in uris) {
+            try {
+                val mimeType = resolver.getType(uri) ?: continue
+                if (!mimeType.startsWith("image/") && !mimeType.startsWith("video/")) continue
+
+                val displayName = resolver.query(
+                    uri, arrayOf(android.provider.MediaStore.MediaColumns.DISPLAY_NAME),
+                    null, null, null,
+                )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                    ?: "${System.currentTimeMillis()}"
+
+                val collection = if (mimeType.startsWith("video/"))
+                    android.provider.MediaStore.Video.Media.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                else
+                    android.provider.MediaStore.Images.Media.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
+
+                val values = ContentValues().apply {
+                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/Gal")
+                    put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+
+                val destUri = resolver.insert(collection, values) ?: continue
+                try {
+                    resolver.openInputStream(uri)?.use { input ->
+                        resolver.openOutputStream(destUri)?.use { output -> input.copyTo(output) }
+                    }
+                    resolver.update(
+                        destUri,
+                        ContentValues().apply { put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0) },
+                        null, null,
+                    )
+                    count++
+                } catch (e: Exception) {
+                    resolver.delete(destUri, null, null)
+                }
+            } catch (_: Exception) {}
+        }
+        count
     }
 }

@@ -1,5 +1,7 @@
 package com.gal.ui.components
 
+import android.graphics.Bitmap
+import android.util.Size as ThumbnailSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -22,15 +24,20 @@ import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.gal.model.Media
 import com.gal.model.MediaType
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MediaGrid(
@@ -65,8 +72,22 @@ fun MediaCell(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Material 3 often uses slightly rounded corners for grid items
-    val shape = MaterialTheme.shapes.extraSmall 
+    val context = LocalContext.current
+    val videoThumbnail: Bitmap? by produceState<Bitmap?>(null, media.id) {
+        if (media.type == MediaType.VIDEO) {
+            value = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.loadThumbnail(
+                        media.uri,
+                        ThumbnailSize(512, 512),
+                        null,
+                    )
+                }.getOrNull()
+            }
+        }
+    }
+
+    val shape = MaterialTheme.shapes.extraSmall
 
     Box(
         modifier = modifier
@@ -79,7 +100,7 @@ fun MediaCell(
             )
     ) {
         AsyncImage(
-            model = media.uri,
+            model = if (media.type == MediaType.VIDEO) videoThumbnail else media.uri,
             contentDescription = media.displayName,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),

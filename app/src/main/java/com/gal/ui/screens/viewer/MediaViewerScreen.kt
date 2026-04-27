@@ -17,12 +17,10 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -34,12 +32,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
@@ -52,7 +54,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -118,21 +119,17 @@ fun MediaViewerScreen(
         ActivityResultContracts.StartIntentSenderForResult()
     ) {}
 
-    // FLAG_SECURE & System Bars
+    // FLAG_SECURE & immersive mode — setDecorFitsSystemWindows is not used because
+    // Android 15+ enforces edge-to-edge for apps targeting SDK 35+ and ignores that call.
     DisposableEffect(Unit) {
         val window = activity.window
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         val ctrl = WindowInsetsControllerCompat(window, window.decorView)
-        
-        // Use BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE to avoid layout shifts when bars appear
         ctrl.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         ctrl.hide(WindowInsetsCompat.Type.systemBars())
-        
         onDispose {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             ctrl.show(WindowInsetsCompat.Type.systemBars())
-            WindowCompat.setDecorFitsSystemWindows(window, true)
         }
     }
 
@@ -199,102 +196,104 @@ fun MediaViewerScreen(
                 MediaType.VIDEO -> LocalVideoPlayer(
                     media = media,
                     modifier = Modifier.fillMaxSize(),
+                    onControlsToggled = { visible -> showControls = visible },
                 )
             }
         }
 
-        // Top bar - use statusBarsPadding() ONLY if we want it to move, 
-        // but here we use a fixed top padding or keep it stable.
+        // Back FAB — top start
         AnimatedVisibility(
             visible = showControls,
             enter = fadeIn(), exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(8.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    // Ensure it stays at the top even when status bars are hidden
-                    .padding(top = 32.dp) 
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
+            SmallFloatingActionButton(
+                onClick = onBack,
+                shape = CircleShape,
+                containerColor = Color.Black.copy(alpha = 0.55f),
+                contentColor = Color.White,
             ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier.align(Alignment.CenterStart),
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+            }
+        }
+
+        // Actions FAB — top end, expands into DropdownMenu
+        AnimatedVisibility(
+            visible = showControls,
+            enter = fadeIn(), exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(8.dp),
+        ) {
+            var menuExpanded by remember { mutableStateOf(false) }
+            Box {
+                SmallFloatingActionButton(
+                    onClick = { menuExpanded = true },
+                    shape = CircleShape,
+                    containerColor = Color.Black.copy(alpha = 0.55f),
+                    contentColor = Color.White,
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                    Icon(Icons.Outlined.MoreVert, contentDescription = "More actions")
                 }
-                Text(
-                    text = currentMedia.displayName ?: "",
-                    color = Color.White.copy(alpha = 0.8f),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.align(Alignment.Center),
-                )
-                if (currentMedia.type == MediaType.IMAGE) {
-                    IconButton(
-                        onClick = { onEdit(currentMedia) },
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                    ) {
-                        Icon(Icons.Outlined.Edit, "Edit", tint = Color.White)
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    if (currentMedia.type == MediaType.IMAGE) {
+                        DropdownMenuItem(
+                            text = { Text("Edit") },
+                            leadingIcon = { Icon(Icons.Outlined.Edit, null) },
+                            onClick = { menuExpanded = false; onEdit(currentMedia) },
+                        )
                     }
-                }
-            }
-        }
-
-        // Bottom action bar
-        AnimatedVisibility(
-            visible = showControls,
-            enter = fadeIn(), exit = fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    .padding(bottom = 24.dp)
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = {
-                    scope.launch(Dispatchers.IO) {
-                        try {
-                            val uri = viewModel.exifScrubber.scrubAndShare(
-                                context, currentMedia.uri
-                            )
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = currentMedia.mimeType
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    DropdownMenuItem(
+                        text = { Text("Share") },
+                        leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                        onClick = {
+                            menuExpanded = false
+                            scope.launch(Dispatchers.IO) {
+                                try {
+                                    val uri = viewModel.exifScrubber.scrubAndShare(context, currentMedia.uri)
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = currentMedia.mimeType
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    withContext(Dispatchers.Main) {
+                                        context.startActivity(Intent.createChooser(intent, "Share"))
+                                    }
+                                } catch (e: Exception) {
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = currentMedia.mimeType
+                                        putExtra(Intent.EXTRA_STREAM, currentMedia.uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    withContext(Dispatchers.Main) {
+                                        context.startActivity(Intent.createChooser(intent, "Share"))
+                                    }
+                                }
                             }
-                            withContext(Dispatchers.Main) {
-                                context.startActivity(Intent.createChooser(intent, "Share"))
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Info") },
+                        leadingIcon = { Icon(Icons.Outlined.Info, null) },
+                        onClick = { menuExpanded = false; showInfo = true },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        leadingIcon = { Icon(Icons.Outlined.Delete, null) },
+                        onClick = {
+                            menuExpanded = false
+                            viewModel.moveToTrash(currentMedia) { req ->
+                                req?.let { permissionLauncher.launch(it) } ?: onBack()
                             }
-                        } catch (e: Exception) {
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = currentMedia.mimeType
-                                putExtra(Intent.EXTRA_STREAM, currentMedia.uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            withContext(Dispatchers.Main) {
-                                context.startActivity(Intent.createChooser(intent, "Share"))
-                            }
-                        }
-                    }
-                }) {
-                    Icon(Icons.Outlined.Share, "Share", tint = Color.White)
-                }
-
-                IconButton(onClick = { showInfo = true }) {
-                    Icon(Icons.Outlined.Info, "Info", tint = Color.White)
-                }
-
-                IconButton(onClick = {
-                    viewModel.moveToTrash(currentMedia) { req ->
-                        req?.let { permissionLauncher.launch(it) } ?: onBack()
-                    }
-                }) {
-                    Icon(Icons.Outlined.Delete, "Delete", tint = Color.White)
+                        },
+                    )
                 }
             }
         }

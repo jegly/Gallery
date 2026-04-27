@@ -12,17 +12,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Forward10
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Replay
+import androidx.compose.material.icons.outlined.Replay10
+import androidx.compose.material.icons.outlined.VolumeOff
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -59,6 +61,7 @@ import kotlinx.coroutines.delay
 fun LocalVideoPlayer(
     media: Media,
     modifier: Modifier = Modifier,
+    onControlsToggled: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val validator = remember { UriValidator() }
@@ -95,6 +98,9 @@ fun LocalVideoPlayer(
     var showControls by remember { mutableStateOf(true) }
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubPosition by remember { mutableFloatStateOf(0f) }
+    var isMuted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isMuted) { exoPlayer.volume = if (isMuted) 0f else 1f }
 
     // Poll player state every 500ms while playing
     LaunchedEffect(isPlaying, isScrubbing) {
@@ -111,6 +117,7 @@ fun LocalVideoPlayer(
         if (showControls && isPlaying) {
             delay(3000)
             showControls = false
+            onControlsToggled(false)
         }
     }
 
@@ -121,7 +128,11 @@ fun LocalVideoPlayer(
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-            ) { showControls = !showControls },
+            ) {
+                val next = !showControls
+                showControls = next
+                onControlsToggled(next)
+            },
     ) {
         // Video surface — no built-in controller
         AndroidView(
@@ -170,7 +181,7 @@ fun LocalVideoPlayer(
                     ),
                 )
 
-                // Play/pause + timestamps
+                // Controls: Mute | Position | -10s | Play/Pause | +10s | Duration
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -178,7 +189,27 @@ fun LocalVideoPlayer(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    // Play / pause / replay
+                    IconButton(onClick = { isMuted = !isMuted }) {
+                        Icon(
+                            imageVector = if (isMuted) Icons.Outlined.VolumeOff else Icons.Outlined.VolumeUp,
+                            contentDescription = if (isMuted) "Unmute" else "Mute",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                    Text(
+                        text = formatMs(position),
+                        color = Color.White,
+                        fontSize = 12.sp,
+                    )
+                    IconButton(onClick = {
+                        exoPlayer.seekTo((exoPlayer.currentPosition - 10_000L).coerceAtLeast(0L))
+                    }) {
+                        Icon(
+                            Icons.Outlined.Replay10, "Rewind 10s",
+                            tint = Color.White, modifier = Modifier.size(26.dp),
+                        )
+                    }
                     IconButton(
                         onClick = {
                             when {
@@ -210,27 +241,19 @@ fun LocalVideoPlayer(
                             modifier = Modifier.size(28.dp),
                         )
                     }
-
-                    // Timestamps
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = formatMs(position),
-                            color = Color.White,
-                            fontSize = 12.sp,
-                        )
-                        Text(
-                            text = " / ",
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 12.sp,
-                        )
-                        Text(
-                            text = formatMs(duration),
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 12.sp,
+                    IconButton(onClick = {
+                        exoPlayer.seekTo((exoPlayer.currentPosition + 10_000L).coerceAtMost(exoPlayer.duration))
+                    }) {
+                        Icon(
+                            Icons.Outlined.Forward10, "Forward 10s",
+                            tint = Color.White, modifier = Modifier.size(26.dp),
                         )
                     }
-
-                    Spacer(Modifier.width(48.dp)) // balance the play button
+                    Text(
+                        text = formatMs(duration),
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp,
+                    )
                 }
             }
         }

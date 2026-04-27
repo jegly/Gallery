@@ -1,5 +1,6 @@
 package com.gal.ui.navigation
 
+import android.net.Uri
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -28,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,6 +50,7 @@ import com.gal.ui.screens.search.SearchScreen
 import com.gal.ui.screens.settings.SettingsScreen
 import com.gal.ui.screens.timeline.TimelineScreen
 import com.gal.ui.screens.trash.TrashScreen
+import com.gal.ui.screens.viewer.IntentViewerScreen
 import com.gal.ui.screens.viewer.MediaViewerScreen
 
 private data class TopLevelRoute(
@@ -64,11 +67,20 @@ private val topLevelRoutes = listOf(
 )
 
 @Composable
-fun GalNavHost() {
+fun GalNavHost(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = topLevelRoutes.any { it.route == currentRoute }
+
+    // Navigate to the intent viewer whenever an external VIEW intent arrives.
+    // onIntentConsumed() resets the URI to null so the same URI can trigger again later.
+    LaunchedEffect(intentUri) {
+        if (intentUri != null) {
+            navController.navigate("intent_viewer/${Uri.encode(intentUri.toString())}")
+            onIntentConsumed()
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -90,7 +102,7 @@ fun GalNavHost() {
                         NavigationBar(
                             containerColor = Color.Transparent,
                             windowInsets = WindowInsets(0, 0, 0, 0),
-                            modifier = Modifier.height(64.dp) // Smaller height
+                            modifier = Modifier.height(64.dp)
                         ) {
                             topLevelRoutes.forEach { dest ->
                                 val selected = navBackStackEntry?.destination?.hierarchy
@@ -177,7 +189,7 @@ fun GalNavHost() {
                 arguments = listOf(
                     navArgument("mediaId") { type = NavType.LongType },
                     navArgument("source") { type = NavType.StringType },
-                    navArgument("albumId") { 
+                    navArgument("albumId") {
                         type = NavType.LongType
                         defaultValue = -1L
                     },
@@ -186,6 +198,17 @@ fun GalNavHost() {
                 MediaViewerScreen(
                     onBack = { navController.popBackStack() },
                     onEdit = { media -> EditActivity.launch(navController.context, media.uri) },
+                )
+            }
+            // Handles ACTION_VIEW intents from external apps (file manager, camera, etc.)
+            composable(
+                "intent_viewer/{uri}",
+                arguments = listOf(navArgument("uri") { type = NavType.StringType }),
+            ) { back ->
+                val encoded = back.arguments?.getString("uri") ?: return@composable
+                IntentViewerScreen(
+                    uri = Uri.parse(encoded),
+                    onBack = { navController.popBackStack() },
                 )
             }
         }

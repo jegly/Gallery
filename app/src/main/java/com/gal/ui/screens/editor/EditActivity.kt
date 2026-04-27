@@ -31,6 +31,7 @@ import androidx.lifecycle.lifecycleScope
 import com.canhub.cropper.CropImageView
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URLDecoder
@@ -62,6 +63,7 @@ class EditActivity : ComponentActivity() {
     private var rotation = 0f
     private var originalBitmap: Bitmap? = null
     private var currentBitmap: Bitmap? = null
+    private var adjustJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -269,7 +271,9 @@ class EditActivity : ComponentActivity() {
 
     private fun applyAdjustments() {
         val src = originalBitmap ?: return
-        lifecycleScope.launch(Dispatchers.Default) {
+        // Cancel any in-flight adjustment so rapid slider moves don't pile up
+        adjustJob?.cancel()
+        adjustJob = lifecycleScope.launch(Dispatchers.Default) {
             val rotated = if (rotation % 360f != 0f)
                 Bitmap.createBitmap(src, 0, 0, src.width, src.height,
                     Matrix().apply { postRotate(rotation) }, true)
@@ -287,8 +291,12 @@ class EditActivity : ComponentActivity() {
             AndroidCanvas(result).drawBitmap(rotated, 0f, 0f, Paint().apply {
                 colorFilter = ColorMatrixColorFilter(cm)
             })
+            // Recycle the previous intermediate bitmap before replacing it
+            val previous = currentBitmap
             currentBitmap = result
             withContext(Dispatchers.Main) { cropView.setImageBitmap(result) }
+            if (previous !== src) previous?.recycle()
+            if (rotated !== src) rotated.recycle()
         }
     }
 
@@ -305,6 +313,8 @@ class EditActivity : ComponentActivity() {
             val cropped = withContext(Dispatchers.Default) { cropView.getCroppedImage() }
             progressBar?.isInvisible = true
             if (cropped != null) {
+                val oldOriginal = originalBitmap
+                val oldCurrent = currentBitmap
                 originalBitmap = cropped
                 currentBitmap = cropped
                 withContext(Dispatchers.Main) {
@@ -312,8 +322,19 @@ class EditActivity : ComponentActivity() {
                     mode = Mode.NONE
                     cropRow.visibility = View.GONE
                 }
+                if (oldCurrent !== oldOriginal) oldCurrent?.recycle()
+                oldOriginal?.recycle()
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        adjustJob?.cancel()
+        if (currentBitmap !== originalBitmap) currentBitmap?.recycle()
+        originalBitmap?.recycle()
+        originalBitmap = null
+        currentBitmap = null
     }
 
     private fun saveImage() {

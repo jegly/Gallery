@@ -31,7 +31,8 @@ class ExifScrubber @Inject constructor() {
         ExifInterface.TAG_LENS_MAKE,            ExifInterface.TAG_LENS_MODEL,
         ExifInterface.TAG_LENS_SERIAL_NUMBER,   ExifInterface.TAG_CAMERA_OWNER_NAME,
         ExifInterface.TAG_IMAGE_UNIQUE_ID,      ExifInterface.TAG_ARTIST,
-        ExifInterface.TAG_COPYRIGHT,            ExifInterface.TAG_DATETIME_ORIGINAL,
+        ExifInterface.TAG_COPYRIGHT,            ExifInterface.TAG_DATETIME,
+        ExifInterface.TAG_DATETIME_ORIGINAL,
         ExifInterface.TAG_DATETIME_DIGITIZED,   ExifInterface.TAG_SUBSEC_TIME_ORIGINAL,
         ExifInterface.TAG_SUBSEC_TIME_DIGITIZED,
     )
@@ -45,8 +46,8 @@ class ExifScrubber @Inject constructor() {
         context.contentResolver.openInputStream(sourceUri)?.use { it.copyTo(tmp.outputStream()) }
             ?: throw IllegalArgumentException("Cannot open: $sourceUri")
 
-        // Only strip EXIF from JPEG/TIFF — skip for video, PNG, HEIF
-        if (ext.lowercase() in listOf("jpg", "jpeg")) {
+        // Strip EXIF from all formats ExifInterface supports writing back to
+        if (ext.lowercase() in listOf("jpg", "jpeg", "heic", "heif", "webp")) {
             ExifInterface(tmp).apply {
                 stripTags.forEach { setAttribute(it, null) }
                 saveAttributes()

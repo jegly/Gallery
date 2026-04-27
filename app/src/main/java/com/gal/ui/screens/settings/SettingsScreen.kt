@@ -1,11 +1,15 @@
 package com.gal.ui.screens.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +20,7 @@ import androidx.datastore.preferences.core.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gal.data.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -25,7 +30,7 @@ import kotlin.math.roundToInt
 data class SettingsState(
     val gridColumns: Int = 3,
     val stripExifOnShare: Boolean = true,
-    val amoledBlack: Boolean = false, // Default OFF
+    val amoledBlack: Boolean = false,
     val biometricLock: Boolean = false,
     val isLoaded: Boolean = false,
 )
@@ -33,6 +38,7 @@ data class SettingsState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val dataStore: DataStore<androidx.datastore.preferences.core.Preferences>,
+    private val mediaRepository: MediaRepository,
 ) : ViewModel() {
     companion object {
         val KEY_GRID      = intPreferencesKey("grid_columns")
@@ -55,6 +61,8 @@ class SettingsViewModel @Inject constructor(
     fun setStripExif(v: Boolean)  = viewModelScope.launch { dataStore.edit { it[KEY_EXIF]      = v } }
     fun setAmoled(v: Boolean)     = viewModelScope.launch { dataStore.edit { it[KEY_AMOLED]    = v } }
     fun setBiometric(v: Boolean)  = viewModelScope.launch { dataStore.edit { it[KEY_BIOMETRIC] = v } }
+
+    suspend fun importFiles(uris: List<Uri>): Int = mediaRepository.importFiles(uris)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,6 +72,25 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var importing by remember { mutableStateOf(false) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            scope.launch {
+                importing = true
+                val count = viewModel.importFiles(uris)
+                importing = false
+                snackbarHostState.showSnackbar(
+                    if (count > 0) "Imported $count item${if (count == 1) "" else "s"} into Gal"
+                    else "Nothing imported"
+                )
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -77,6 +104,7 @@ fun SettingsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -101,6 +129,35 @@ fun SettingsScreen(
                     steps = 3,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            SectionHeader("Library")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !importing) {
+                        importLauncher.launch(arrayOf("image/*", "video/*"))
+                    }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Import media", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Copy photos or videos from anywhere into your gallery",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (importing) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(
+                        Icons.Outlined.AddPhotoAlternate,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             SectionHeader("Privacy")
@@ -136,12 +193,23 @@ fun SettingsScreen(
 
 @Composable
 private fun SectionHeader(title: String) {
-    Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp))
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+    )
 }
 
 @Composable
 private fun SettingsToggle(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().clickable { onCheckedChange(!checked) }.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
