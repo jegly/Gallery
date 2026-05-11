@@ -50,5 +50,4 @@ No network. No cloud. No tracking.
 
 ---
 
-  sha256:97ff3c3fe77f5cca6ce763f78b6572b4bc543d33e47cab9ef4fd1b8e7d59b68c
-
+sha256:ff78c489d5ff3f27cbf40b0f92932127d7257b7b9d5f39102f0fe0889520e45b        - 3.0.1
