@@ -1,4 +1,6 @@
-# Gallery
+<p align="center">
+  <img src="gallery_banner.png" alt="Gallery Banner" />
+</p>
 
 A private, minimal photo and video gallery for Android.
 No network. No cloud. No tracking.
