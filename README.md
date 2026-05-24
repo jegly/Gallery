@@ -19,7 +19,7 @@ No network. No cloud. No tracking.
     - Sort by date, modified, size, name
     - Filter by photo or video
     - EXIF stripped on share
-    - AMOLED black mode
+    - Pretty themes and stuff
 
 ## REQUIREMENTS
 
