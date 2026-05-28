@@ -51,5 +51,4 @@ No network. No cloud. No tracking.
     No INTERNET permission.
 
 ---
-
-sha256:ff78c489d5ff3f27cbf40b0f92932127d7257b7b9d5f39102f0fe0889520e45b        - 3.0.1
+sha256:b7f9a81d4fe0df7877fc6d1aa44f247ef513ae14c1825d7b94747e16a0a88f55
