@@ -20,10 +20,11 @@ No network. No cloud. No tracking.
     - Filter by photo or video
     - EXIF stripped on share
     - Pretty themes and stuff
+    - PIP 
 
 ## REQUIREMENTS
 
-    Android 11+
+    Android 16+
     arm64-v8a device
 
 ## BUILD
@@ -39,6 +40,7 @@ No network. No cloud. No tracking.
     Kotlin + Jetpack Compose
     Hilt, Room, DataStore
     Coil 3, Media3 ExoPlayer
+    
     
 
 ## PERMISSIONS
