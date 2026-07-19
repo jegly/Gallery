@@ -24,7 +24,7 @@ No network. No cloud. No tracking.
 
 ## REQUIREMENTS
 
-    Android 16+
+    Android 13+
     arm64-v8a device
 
 ## BUILD
