@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <cache-path name="shared_images" path="." />
+    <!-- Scoped to the share/ subdirectory so a FileProvider URI grant can never
+         expose other items in cache (vault staging, OS scratch, etc.). -->
+    <cache-path name="shared_images" path="share/" />
 </paths>

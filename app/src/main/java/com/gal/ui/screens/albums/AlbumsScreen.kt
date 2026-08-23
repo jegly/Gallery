@@ -2,11 +2,9 @@ package com.gal.ui.screens.albums
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,10 +13,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.GridView
-import androidx.compose.material.icons.outlined.ViewList
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,11 +59,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
-import kotlin.math.roundToInt
 
 @HiltViewModel
 class AlbumsViewModel @Inject constructor(
-    private val repository: MediaRepository,
+    repository: MediaRepository,
 ) : ViewModel() {
     val albums = repository.albums()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList<Album>())
@@ -68,14 +72,16 @@ class AlbumsViewModel @Inject constructor(
 @Composable
 fun AlbumsScreen(
     onAlbumClick: (Album) -> Unit,
+    onTrashClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     viewModel: AlbumsViewModel = hiltViewModel(),
 ) {
     val albums by viewModel.albums.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    // Columns: 1–4, default 2. Pinch gesture accumulates scale and snaps to column count.
     var columns by remember { mutableIntStateOf(2) }
     var pinchAccum by remember { mutableFloatStateOf(1f) }
+    var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -83,13 +89,32 @@ fun AlbumsScreen(
             TopAppBar(
                 title = { Text("Albums") },
                 actions = {
-                    // Quick toggle between 1, 2, 3, 4 columns
                     IconButton(onClick = { columns = if (columns >= 4) 1 else columns + 1 }) {
                         Icon(
-                            if (columns <= 2) Icons.Outlined.GridView else Icons.Outlined.ViewList,
+                            if (columns <= 2) Icons.Outlined.GridView else Icons.AutoMirrored.Outlined.ViewList,
                             contentDescription = "Change grid size",
                             modifier = Modifier.size(20.dp),
                         )
+                    }
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Outlined.MoreVert, contentDescription = "More")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Trash") },
+                                leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+                                onClick = { showMenu = false; onTrashClick() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                                onClick = { showMenu = false; onSettingsClick() },
+                            )
+                        }
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -117,15 +142,14 @@ fun AlbumsScreen(
                 contentPadding = PaddingValues(
                     start = 12.dp, end = 12.dp,
                     top = padding.calculateTopPadding() + 8.dp,
-                    bottom = padding.calculateBottomPadding() + 8.dp,
+                    bottom = padding.calculateBottomPadding() + 8.dp +
+                        com.gal.ui.navigation.LocalFloatingNavBarPadding.current,
                 ),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxSize()
                     .pointerInput(Unit) {
-                        // Pinch to resize — spread fingers = fewer columns (bigger),
-                        // pinch in = more columns (smaller)
                         detectTransformGestures { _, _, zoom, _ ->
                             pinchAccum *= zoom
                             when {

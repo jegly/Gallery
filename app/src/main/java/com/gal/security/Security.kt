@@ -1,13 +1,34 @@
 package com.gal.security
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
-import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
+
+@Singleton
+class SignatureVerifier @Inject constructor() {
+
+    private val trustedSha256 = "98d324d4106a368c62729a0a24d9ac9a6b47f8ac4c6585348531f0ee4eb6a04c"
+
+    fun isSignedByTrustedCert(context: Context): Boolean = runCatching {
+        val pm = context.packageManager
+        @Suppress("DEPRECATION")
+        val info = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+        val signers = info.signingInfo?.apkContentsSigners ?: return false
+        val digest = MessageDigest.getInstance("SHA-256")
+        signers.any { sig ->
+            digest.reset()
+            digest.digest(sig.toByteArray()).toHex() == trustedSha256
+        }
+    }.getOrDefault(false)
+
+    private fun ByteArray.toHex() = joinToString("") { "%02x".format(it) }
+}
 
 /**
  * Strips GPS, device, and timing EXIF data before sharing.
@@ -41,7 +62,10 @@ class ExifScrubber @Inject constructor() {
     fun scrubAndShare(context: Context, sourceUri: Uri): Uri {
         val ext = context.contentResolver.getType(sourceUri)
             ?.substringAfterLast("/") ?: "jpg"
-        val tmp = File(context.cacheDir, "share_${System.currentTimeMillis()}.$ext")
+        // Keep share temp files in a dedicated subdirectory so the FileProvider path
+        // declaration can be scoped tightly (see res/xml/filepaths.xml).
+        val shareDir = File(context.cacheDir, "share").apply { mkdirs() }
+        val tmp = File(shareDir, "share_${System.currentTimeMillis()}.$ext")
 
         context.contentResolver.openInputStream(sourceUri)?.use { it.copyTo(tmp.outputStream()) }
             ?: throw IllegalArgumentException("Cannot open: $sourceUri")
@@ -58,9 +82,10 @@ class ExifScrubber @Inject constructor() {
     }
 
     fun clearCache(context: Context) {
+        File(context.cacheDir, "share").listFiles()?.forEach { it.delete() }
+        // Legacy cleanup: previous versions wrote share_* directly in cacheDir.
         context.cacheDir.listFiles { f ->
-            f.name.startsWith("share_") &&
-                    f.extension.lowercase() in listOf("jpg", "jpeg", "png", "webp", "gif", "avif", "heic")
+            f.name.startsWith("share_") && f.isFile
         }?.forEach { it.delete() }
     }
 }

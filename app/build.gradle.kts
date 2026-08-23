@@ -12,10 +12,10 @@ android {
 
     defaultConfig {
         applicationId = "com.gal"
-        minSdk = 30
+        minSdk = 33
         targetSdk = 37
-        versionCode = 3
-        versionName = "3.0.1"
+        versionCode = 5
+        versionName = "4.1.0"
 
         // meow meow meow meow
         ndk {
@@ -49,6 +49,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -73,6 +74,7 @@ dependencies {
     implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.animation)
     implementation(libs.compose.foundation)
+    implementation(libs.material3.adaptive.navigation.suite)
     debugImplementation(libs.compose.ui.tooling)
 
     // Activity / Hellcycle
@@ -117,8 +119,12 @@ dependencies {
     // Window / Foldable
     implementation(libs.window)
 
+    // Material
+    implementation(libs.material)
+
     // Core
     implementation(libs.android.image.cropper)
     implementation(libs.core.ktx)
     implementation(libs.splashscreen)
+    implementation(libs.documentfile)
 }

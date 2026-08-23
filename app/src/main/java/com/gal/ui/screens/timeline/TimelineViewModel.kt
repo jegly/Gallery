@@ -7,8 +7,10 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gal.data.repository.MediaRepository
+import com.gal.model.DateGroup
 import com.gal.model.Media
 import com.gal.model.MediaType
+import com.gal.util.groupedByDay
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -75,6 +77,11 @@ class TimelineViewModel @Inject constructor(
             SortOrder.NAME_ASC           -> filtered.sortedBy { it.displayName?.lowercase() }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Same data as [media] but grouped by day for header rendering. */
+    val sectioned: kotlinx.coroutines.flow.StateFlow<List<DateGroup>> = media
+        .map { it.groupedByDay() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun setSortOrder(sort: SortOrder) = viewModelScope.launch {
         dataStore.edit { it[KEY_SORT] = sort.ordinal }

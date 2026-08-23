@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -30,11 +29,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import android.view.WindowManager
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -42,6 +43,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gal.BuildConfig
+import com.gal.data.local.MediaStoreRefresher
+import com.gal.security.SignatureVerifier
+import javax.inject.Inject
 import com.gal.ui.navigation.GalNavHost
 import com.gal.ui.screens.settings.SettingsViewModel
 import com.gal.ui.theme.GalTheme
@@ -52,6 +57,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
+    @Inject lateinit var signatureVerifier: SignatureVerifier
+    @Inject lateinit var refresher: MediaStoreRefresher
     private val settingsViewModel: SettingsViewModel by viewModels()
 
     // Holds the URI from an external ACTION_VIEW intent so the composition can react to it.
@@ -61,6 +68,12 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        if (!BuildConfig.DEBUG && !signatureVerifier.isSignedByTrustedCert(this)) {
+            showTamperDialog()
+            return
+        }
+
         enableEdgeToEdge()
 
         if (intent?.action == Intent.ACTION_VIEW && intent.data != null) {
@@ -70,8 +83,30 @@ class MainActivity : FragmentActivity() {
         setContent {
             val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
             val intentUri by viewIntentUri.collectAsStateWithLifecycle()
+            val view = LocalView.current
 
-            GalTheme(amoled = settingsState.amoledBlack) {
+            // App-wide screenshot blocking (FLAG_SECURE on the main window)
+            DisposableEffect(settingsState.blockScreenshots) {
+                val blockScreenshots = settingsState.blockScreenshots
+                if (blockScreenshots) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                onDispose {
+                    if (blockScreenshots) window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+
+            // Tapjacking protection: ignore touches when overlaid by another window
+            DisposableEffect(settingsState.filterTouches) {
+                view.filterTouchesWhenObscured = settingsState.filterTouches
+                onDispose { view.filterTouchesWhenObscured = false }
+            }
+
+            GalTheme(
+                themeMode        = settingsState.themeMode,
+                catppuccinAccent = settingsState.catppuccinAccent,
+                draculaAccent    = settingsState.draculaAccent,
+                ptyxisPalette    = settingsState.ptyxisPalette,
+                appFont          = settingsState.appFont,
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
@@ -132,6 +167,13 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Re-poll MediaStore + kick the scanner so anything the file manager
+        // dropped while we were backgrounded shows up.
+        refresher.bump()
+    }
+
     // singleTask activities receive re-delivery here instead of onCreate when already running
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -139,6 +181,15 @@ class MainActivity : FragmentActivity() {
         if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
             viewIntentUri.value = intent.data
         }
+    }
+
+    private fun showTamperDialog() {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Unverified App")
+            .setMessage("This copy of Gal has been modified or re-signed. Please install from the official source.")
+            .setCancelable(false)
+            .setPositiveButton("Exit") { _, _ -> finish() }
+            .show()
     }
 
     private fun authenticate(onResult: (Boolean) -> Unit) {
@@ -230,15 +281,12 @@ private fun PermissionScreen(onRequest: () -> Unit) {
     }
 }
 
-private fun requiredPermissions(): Array<String> = when {
-    Build.VERSION.SDK_INT >= 35 -> arrayOf(
-        Manifest.permission.READ_MEDIA_IMAGES,
-        Manifest.permission.READ_MEDIA_VIDEO,
-        Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
-    )
-    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> arrayOf(
-        Manifest.permission.READ_MEDIA_IMAGES,
-        Manifest.permission.READ_MEDIA_VIDEO,
-    )
-    else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-}
+private fun requiredPermissions(): Array<String> = arrayOf(
+    Manifest.permission.READ_MEDIA_IMAGES,
+    Manifest.permission.READ_MEDIA_VIDEO,
+    Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+    // Without this, MediaStore redacts GPS EXIF tags from the stream we read for the
+    // media viewer's "Info" location row, even though ACCESS_MEDIA_LOCATION is declared
+    // in the manifest — it's a runtime-requestable permission like the others above.
+    Manifest.permission.ACCESS_MEDIA_LOCATION,
+)
