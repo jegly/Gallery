@@ -7,6 +7,7 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
 import coil3.video.VideoFrameDecoder
+import com.gal.data.raw.RawPreviewFetcher
 import com.gal.di.galDataStore
 import com.gal.security.ExifScrubber
 import dagger.hilt.android.HiltAndroidApp
@@ -30,7 +31,10 @@ class GalApplication : Application(), SingletonImageLoader.Factory {
             applicationContext.galDataStore.data.first()[KEY_SECURE_THUMBNAIL_CACHE] ?: false
         }
         return ImageLoader.Builder(context)
-            .components { add(VideoFrameDecoder.Factory()) }
+            .components {
+                add(RawPreviewFetcher.Factory())
+                add(VideoFrameDecoder.Factory())
+            }
             .apply { if (secureThumbnails) diskCachePolicy(CachePolicy.DISABLED) }
             .build()
     }
