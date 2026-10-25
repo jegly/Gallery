@@ -13,8 +13,8 @@ android {
         applicationId = "com.gal"
         minSdk = 33
         targetSdk = 37
-        versionCode=6
-        versionName="4.1.1"
+        versionCode=7
+        versionName="4.2.0"
 
         // meow meow meow meow
         ndk {
