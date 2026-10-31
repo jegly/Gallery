@@ -1,4 +1,6 @@
 [versions]
+# Direct pin: media3 / kotlinx-coroutines-guava pull an older Guava into the APK.
+guava = "33.7.2-android"
 agp = "9.5.0"
 kotlin = "2.4.21"
 ksp = "2.3.12"
@@ -20,6 +22,7 @@ material = "1.14.0"
 documentfile = "1.1.0"
 
 [libraries]
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 # Compose BOM
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
 compose-ui = { group = "androidx.compose.ui", name = "ui" }

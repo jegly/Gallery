@@ -67,6 +67,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.guava)
+
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.compose.ui)
