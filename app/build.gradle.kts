@@ -13,8 +13,9 @@ android {
         applicationId = "com.gal"
         minSdk = 33
         targetSdk = 37
-        versionCode=7
-        versionName="4.2.0"
+        // CI release builds pass these; local builds use the defaults.
+        versionCode = providers.gradleProperty("appVersionCode").map(String::toInt).getOrElse(7)
+        versionName = providers.gradleProperty("appVersionName").getOrElse("4.2.0")
 
         // meow meow meow meow
         ndk {
