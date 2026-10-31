@@ -104,6 +104,13 @@ jobs:
             cat generated.md
           } > notes.md
 
-          gh release create "v$VERSION" "$apk" --draft --target "$GITHUB_SHA" \
-            --title "v$VERSION" --notes-file notes.md
-          echo "Draft release v$VERSION created with $apk" >> "$GITHUB_STEP_SUMMARY"
+          # Create the tag here rather than on publish: publishing a draft that
+          # still has to create its tag failed on GitHub's side (HTTP 500).
+          git tag "v$VERSION" "$GITHUB_SHA"
+          git push origin "refs/tags/v$VERSION"
+          if ! gh release create "v$VERSION" "$apk" --draft --verify-tag \
+              --title "v$VERSION" --notes-file notes.md; then
+            git push --delete origin "refs/tags/v$VERSION"
+            exit 1
+          fi
+          echo "Draft release v$VERSION created on tag v$VERSION with $apk" >> "$GITHUB_STEP_SUMMARY"
