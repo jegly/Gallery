@@ -40,8 +40,9 @@ jobs:
         id: ver
         run: |
           semver='^[0-9]+\.[0-9]+\.[0-9]+$'
-          # Latest of: newest vX.Y.Z tag, and the versionName default in Gradle.
-          last_tag=$(git tag -l 'v*' | sed 's/^v//' | grep -E "$semver" | sort -V | tail -n1 || true)
+          # Latest of: the latest published release, and the versionName default
+          # in Gradle. Not the highest tag: some repos have stray old tags.
+          last_tag=$(gh release view --json tagName --jq .tagName 2>/dev/null | sed 's/^v//' | grep -E "$semver" || true)
           file_ver=$(grep -hoE 'appVersionName"\)\.getOrElse\("[0-9]+\.[0-9]+\.[0-9]+"' app/build.gradle* | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
           latest=$(printf '%s\n' $last_tag $file_ver | sort -V | tail -n1)
 
@@ -64,6 +65,9 @@ jobs:
           fi
           if gh release view "v$version" >/dev/null 2>&1; then
             echo "::error::A release or draft named v$version already exists."; exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "::error::Tag v$version already exists."; exit 1
           fi
 
           {
