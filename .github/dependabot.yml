@@ -11,3 +11,7 @@ updates:
         patterns: ["androidx.*"]
       agp:
         patterns: ["com.android.*"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
