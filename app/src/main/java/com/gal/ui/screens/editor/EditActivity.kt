@@ -3,6 +3,7 @@ package com.gal.ui.screens.editor
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Color as AColor
@@ -41,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import kotlin.math.min
 
 class EditActivity : ComponentActivity() {
@@ -742,31 +744,75 @@ class EditActivity : ComponentActivity() {
             ).show()
             return
         }
-        val pi = MediaStore.createWriteRequest(contentResolver, listOf(sourceUri))
-        writeLauncher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
+        // createWriteRequest only accepts MediaStore items; anything else (e.g. a URI handed
+        // in by another app) throws, so point the user at Copy instead of crashing.
+        if (sourceUri.authority != MediaStore.AUTHORITY) {
+            Toast.makeText(
+                this,
+                "This image isn't in your media library and can't be overwritten. Use Copy instead.",
+                Toast.LENGTH_LONG,
+            ).show()
+            return
+        }
+        // Already holding a write grant (or MANAGE_MEDIA) — no need to show the system prompt.
+        if (checkSelfUriPermission(sourceUri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            saveInPlaceAfterPermission()
+            return
+        }
+        try {
+            val pi = MediaStore.createWriteRequest(contentResolver, listOf(sourceUri))
+            writeLauncher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
+        } catch (e: Exception) {
+            Toast.makeText(this, "Couldn't request write access: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun saveInPlaceAfterPermission() {
-        val bm = currentBitmap ?: return
+        val bm = currentBitmap
+        if (bm == null || bm.isRecycled) {
+            Toast.makeText(this, "Nothing to save yet", Toast.LENGTH_SHORT).show()
+            return
+        }
         lifecycleScope.launch(Dispatchers.IO) {
-            val ok = runCatching {
-                contentResolver.openOutputStream(sourceUri, "wt")?.use { out ->
-                    val mime = contentResolver.getType(sourceUri)?.lowercase() ?: "image/jpeg"
-                    val format = when (mime) {
-                        "image/png" -> Bitmap.CompressFormat.PNG
-                        "image/webp" -> Bitmap.CompressFormat.WEBP_LOSSLESS
-                        else -> Bitmap.CompressFormat.JPEG
-                    }
-                    bm.compress(format, 95, out)
-                } != null
-            }.getOrDefault(false)
+            val error = runCatching {
+                val mime = contentResolver.getType(sourceUri)?.lowercase() ?: "image/jpeg"
+                val format = when (mime) {
+                    "image/png" -> Bitmap.CompressFormat.PNG
+                    "image/webp" -> Bitmap.CompressFormat.WEBP_LOSSLESS
+                    else -> Bitmap.CompressFormat.JPEG
+                }
+                // Encode fully before touching the file: opening with "wt" truncates it, so a
+                // failed encode mid-stream would otherwise destroy the original.
+                val bytes = ByteArrayOutputStream().also {
+                    check(bm.compress(format, 95, it)) { "Couldn't encode image" }
+                }.toByteArray()
+                val out = contentResolver.openOutputStream(sourceUri, "wt")
+                    ?: error("Couldn't open the file for writing")
+                out.use { it.write(bytes) }
+                // Bump the modified time so the library (and image caches keyed on it) notice.
+                runCatching {
+                    contentResolver.update(
+                        sourceUri,
+                        ContentValues().apply {
+                            put(MediaStore.MediaColumns.DATE_MODIFIED, System.currentTimeMillis() / 1000)
+                        },
+                        null, null,
+                    )
+                }
+            }.exceptionOrNull()
             withContext(Dispatchers.Main) {
-                Toast.makeText(
-                    this@EditActivity,
-                    if (ok) "Saved" else "Save failed",
-                    Toast.LENGTH_SHORT,
-                ).show()
-                if (ok) finish()
+                if (error == null) {
+                    Toast.makeText(this@EditActivity, "Saved", Toast.LENGTH_SHORT).show()
+                    finish()
+                } else {
+                    Toast.makeText(
+                        this@EditActivity,
+                        "Save failed: ${error.message ?: error.javaClass.simpleName}",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
             }
         }
     }
