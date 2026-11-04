@@ -3,7 +3,6 @@ package com.gal.ui.screens.editor
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Color as AColor
@@ -754,13 +753,6 @@ class EditActivity : ComponentActivity() {
             ).show()
             return
         }
-        // Already holding a write grant (or MANAGE_MEDIA) — no need to show the system prompt.
-        if (checkSelfUriPermission(sourceUri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) ==
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            saveInPlaceAfterPermission()
-            return
-        }
         try {
             val pi = MediaStore.createWriteRequest(contentResolver, listOf(sourceUri))
             writeLauncher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
@@ -776,7 +768,7 @@ class EditActivity : ComponentActivity() {
             return
         }
         lifecycleScope.launch(Dispatchers.IO) {
-            val error = runCatching {
+            val failure = runCatching {
                 val mime = contentResolver.getType(sourceUri)?.lowercase() ?: "image/jpeg"
                 val format = when (mime) {
                     "image/png" -> Bitmap.CompressFormat.PNG
@@ -803,13 +795,13 @@ class EditActivity : ComponentActivity() {
                 }
             }.exceptionOrNull()
             withContext(Dispatchers.Main) {
-                if (error == null) {
+                if (failure == null) {
                     Toast.makeText(this@EditActivity, "Saved", Toast.LENGTH_SHORT).show()
                     finish()
                 } else {
                     Toast.makeText(
                         this@EditActivity,
-                        "Save failed: ${error.message ?: error.javaClass.simpleName}",
+                        "Save failed: ${failure.message ?: failure.javaClass.simpleName}",
                         Toast.LENGTH_LONG,
                     ).show()
                 }
