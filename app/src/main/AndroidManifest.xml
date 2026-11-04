@@ -33,6 +33,12 @@
     <!-- ExoPlayer / Coil internals pull in ACCESS_NETWORK_STATE; block it -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"
         tools:node="remove" />
+    <!-- Deny all network access: no library may re-add INTERNET (or the Android 17
+         local-network permission) through manifest merging -->
+    <uses-permission android:name="android.permission.INTERNET"
+        tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK"
+        tools:node="remove" />
 
     <application
         android:name=".GalApplication"
