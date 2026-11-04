@@ -11,8 +11,8 @@ name = "gal_editor"
 crate-type = ["cdylib"]
 
 [dependencies]
-# Editing, film looks and export only: no GTK window, no Real-ESRGAN/ONNX Runtime, no AI models.
-grainhouse = { git = "https://github.com/jegly/grainhouse", rev = "f9609e5692bae4dd178c20d472f01f6c36030853",default-features = false }
+# Editing, film looks and export only: Gallery's copy of the library (no window, upscaling or AI models).
+grainhouse = { path = "../grainhouse" }
 jni = { version = "0.21", default-features = false }
 serde_json = "1"
 

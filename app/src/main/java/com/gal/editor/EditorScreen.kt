@@ -42,9 +42,13 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -90,6 +94,7 @@ fun EditorScreen(
 ) {
     val snackbar = remember { SnackbarHostState() }
     var confirmOverwrite by remember { mutableStateOf(false) }
+    var exportSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(vm.message) {
         vm.message?.let {
@@ -114,7 +119,7 @@ fun EditorScreen(
                     IconButton(onClick = vm::redo, enabled = vm.canRedo) {
                         Icon(Icons.AutoMirrored.Outlined.Redo, contentDescription = "Redo")
                     }
-                    TextButton(onClick = vm::saveCopy, enabled = vm.doc != null && !vm.saving) { Text("Copy") }
+                    TextButton(onClick = { exportSheet = true }, enabled = vm.doc != null && !vm.saving) { Text("Save copy") }
                     if (vm.canSaveInPlace) {
                         Button(
                             onClick = { confirmOverwrite = true },
@@ -186,6 +191,10 @@ fun EditorScreen(
         }
     }
 
+    if (exportSheet) {
+        ExportSheet(vm, onDismiss = { exportSheet = false })
+    }
+
     if (confirmOverwrite) {
         AlertDialog(
             onDismissRequest = { confirmOverwrite = false },
@@ -198,6 +207,90 @@ fun EditorScreen(
                 TextButton(onClick = { confirmOverwrite = false }) { Text("Cancel") }
             },
         )
+    }
+}
+
+// ── Save copy ───────────────────────────────────────────────────────────────
+
+/** Format, size, sharpening and metadata for a copy; the original is never touched. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExportSheet(vm: EditorViewModel, onDismiss: () -> Unit) {
+    val o = vm.exportOptions
+    fun set(next: ExportOptions) { vm.exportOptions = next }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 24.dp),
+        ) {
+            Text("Save a copy", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 16.dp))
+            Text(
+                "Saved as a new photo in Pictures/Gal. The original stays as it is.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+
+            SectionLabel("Format")
+            Segmented(ExportFormat.entries.map { it.label }, o.format.ordinal) { set(o.copy(format = ExportFormat.entries[it])) }
+            if (o.format == ExportFormat.JPEG) {
+                ValueSlider(
+                    "Quality", o.quality.toFloat(), 50f, 100f, 0, "%",
+                    onChange = { set(o.copy(quality = it.roundToInt())) }, onDone = {}, onReset = { set(o.copy(quality = 92)) },
+                )
+            }
+
+            SectionLabel("Size")
+            val original = vm.photoSize?.let { (w, h) -> "Original (${w} × ${h})" } ?: "Original"
+            Segmented(listOf("Original", "Long edge", "Percent"), o.size) { set(o.copy(size = it)) }
+            when (o.size) {
+                0 -> Text(original, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp))
+                1 -> ValueSlider(
+                    "Long edge", o.longEdge.toFloat(), 500f, 8000f, 0, " px",
+                    onChange = { set(o.copy(longEdge = (it / 50f).roundToInt() * 50)) }, onDone = {},
+                    onReset = { set(o.copy(longEdge = 3000)) },
+                )
+                else -> ValueSlider(
+                    "Scale", o.percent.toFloat(), 10f, 100f, 0, "%",
+                    onChange = { set(o.copy(percent = it.roundToInt())) }, onDone = {}, onReset = { set(o.copy(percent = 50)) },
+                )
+            }
+
+            SectionLabel("Output")
+            SwitchRow("Sharpen for output", "Smart sharpening after resizing", o.sharpen) { set(o.copy(sharpen = it)) }
+            if (o.sharpen) {
+                ValueSlider(
+                    "Amount", o.sharpenAmount * 100f, 0f, 200f, 0, "",
+                    onChange = { set(o.copy(sharpenAmount = it / 100f)) }, onDone = {}, onReset = { set(o.copy(sharpenAmount = 0.8f)) },
+                )
+            }
+            SwitchRow(
+                "Keep photo info",
+                if (o.format == ExportFormat.JPEG) "Camera, date and location (EXIF)" else "Only JPEG copies carry photo info",
+                o.keepMetadata && o.format == ExportFormat.JPEG,
+            ) { set(o.copy(keepMetadata = it)) }
+
+            Button(
+                onClick = { vm.saveCopy(); onDismiss() },
+                enabled = !vm.saving,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            ) { Text("Save copy") }
+        }
+    }
+}
+
+@Composable
+private fun Segmented(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        items.forEachIndexed { i, label ->
+            SegmentedButton(
+                selected = i == selected,
+                onClick = { onSelect(i) },
+                shape = SegmentedButtonDefaults.itemShape(index = i, count = items.size),
+            ) { Text(label) }
+        }
     }
 }
 

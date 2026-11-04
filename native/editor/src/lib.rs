@@ -146,7 +146,9 @@ pub extern "system" fn Java_com_gal_editor_GrainhouseNative_applyPreset(
     })
 }
 
-/// Renders at full size and writes `out_path` (format 0 JPEG, 1 PNG, 2 TIFF), keeping `source_path`'s EXIF.
+/// Renders at full size, applies the export options (size, sharpening) and writes `out_path`, with the
+/// original's EXIF unless asked not to. `options_json`: {"format": 0 JPEG | 1 PNG | 2 TIFF, "quality",
+/// "size": 0 original | 1 long edge | 2 percent, "longEdge", "percent", "sharpen", "sharpenAmount", "keepExif"}.
 #[no_mangle]
 pub extern "system" fn Java_com_gal_editor_GrainhouseNative_export(
     mut env: JNIEnv,
@@ -154,15 +156,29 @@ pub extern "system" fn Java_com_gal_editor_GrainhouseNative_export(
     handle: jlong,
     settings_json: JString,
     out_path: JString,
-    format: jint,
-    quality: jint,
+    options_json: JString,
 ) {
     guard(&mut env, (), |env| {
         let s = settings(&string(env, &settings_json)?)?;
         let out = string(env, &out_path)?;
+        let o: Value = serde_json::from_str(&string(env, &options_json)?).map_err(|e| format!("bad export options: {e}"))?;
+        let num = |k: &str, d: f64| o.get(k).and_then(Value::as_f64).unwrap_or(d);
+        let opt = ExportOptions {
+            format: num("format", 0.0).clamp(0.0, 2.0) as usize,
+            quality: num("quality", 92.0).clamp(1.0, 100.0) as u8,
+            size: num("size", 0.0).clamp(0.0, 2.0) as usize,
+            long_edge: num("longEdge", 3000.0).clamp(64.0, 20000.0) as usize,
+            percent: num("percent", 100.0).clamp(1.0, 100.0) as f32,
+            // upscaling isn't in this build; AI detail falls back to none
+            upscale: 0,
+            sharpen: if o.get("sharpen").and_then(Value::as_bool).unwrap_or(false) { 1 } else { 0 },
+            sharpen_amount: num("sharpenAmount", 0.8).clamp(0.0, 2.0) as f32,
+            keep_exif: o.get("keepExif").and_then(Value::as_bool).unwrap_or(true),
+            ..ExportOptions::default()
+        };
         let session = session(handle)?;
         let img = session.render(&s, usize::MAX)?;
-        let opt = ExportOptions { format: format.clamp(0, 2) as usize, quality: quality.clamp(1, 100) as u8, keep_exif: true, ..ExportOptions::default() };
+        let img = export::process(img, &opt, &|_| true)?;
         export::save(&img, Path::new(&out), &opt, Some(session.path.as_path()))
     })
 }

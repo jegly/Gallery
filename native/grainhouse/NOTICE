@@ -1,0 +1,15 @@
+Grainhouse includes these models and data:
+
+- YOLO11n-seg and YOLO11n-pose by Ultralytics, AGPL-3.0 (https://github.com/ultralytics/ultralytics),
+  converted to Grainhouse's own format. Because of them, Grainhouse is distributed under the AGPL-3.0 as well.
+- MediaPipe face detector (BlazeFace short range), face landmark model and face mesh edge list by Google,
+  Apache-2.0 (https://github.com/google-ai-edge/mediapipe).
+- Real-ESRGAN (RealESRGAN_x4plus, realesr-general-x4v3, realesr-general-wdn-x4v3) by Xintao Wang et al.,
+  BSD-3-Clause (https://github.com/xinntao/Real-ESRGAN), converted to ONNX by tools/esrgan_to_onnx.py.
+
+It is built with, among others:
+
+- rawler (LGPL-2.1) for RAW files, https://github.com/dnglab/dnglab
+- ONNX Runtime (MIT) through the ort crate (MIT/Apache-2.0), https://github.com/pykeio/ort
+- GTK 4 and libadwaita (LGPL-2.1 or later)
+- image, rayon, serde (MIT/Apache-2.0)

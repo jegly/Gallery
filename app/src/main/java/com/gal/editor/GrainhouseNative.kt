@@ -27,8 +27,8 @@ internal object GrainhouseNative {
 
     external fun applyPreset(current: String, preset: String): String
 
-    /** Full-size render written to [outPath]; [format] 0 JPEG, 1 PNG, 2 TIFF. Keeps the original's EXIF. */
-    external fun export(handle: Long, settings: String, outPath: String, format: Int, quality: Int)
+    /** Full-size render written to [outPath] with [options] (see ExportOptions.json). */
+    external fun export(handle: Long, settings: String, outPath: String, options: String)
 
     /** Lists for the pickers, built-in presets and the default settings (JSON). */
     external fun catalog(): String

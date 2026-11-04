@@ -1,0 +1,153 @@
+00.bin|664|Polaroid|Black & white|7.9
+01.bin|665|Polaroid|Instant|11.1
+02.bin|665 Negative|Polaroid|Instant|10.5
+03.bin|665 Negative HC|Polaroid|Instant|14.9
+04.bin|667|Polaroid|Black & white|11.5
+05.bin|669|Polaroid|Instant|10.1
+06.bin|669 Cold|Polaroid|Instant|13.9
+07.bin|672|Polaroid|Black & white|7.9
+08.bin|690|Polaroid|Instant|8.9
+09.bin|690 Cold|Polaroid|Instant|11.5
+10.bin|690 Warm|Polaroid|Instant|9.8
+11.bin|Polachrome|Polaroid|Slide|10.8
+12.bin|PX-100UV+ Cold|Polaroid|Instant|8.1
+13.bin|PX-100UV+ Warm|Polaroid|Instant|6.7
+14.bin|PX-680|Polaroid|Instant|15.3
+15.bin|PX-680 Cold|Polaroid|Instant|10.7
+16.bin|PX-680 Warm|Polaroid|Instant|14.4
+17.bin|PX-70|Polaroid|Instant|13.1
+18.bin|PX-70 Cold|Polaroid|Instant|18.8
+19.bin|PX-70 Warm|Polaroid|Instant|15.6
+20.bin|Time Zero Expired|Polaroid|Instant|9.6
+21.bin|Time Zero Expired Cold|Polaroid|Instant|10.8
+22.bin|Delta 100|Ilford|Black & white|9.2
+23.bin|Delta 3200|Ilford|Colour|10.3
+24.bin|Delta 400|Ilford|Black & white|6.6
+25.bin|FP4 Plus 125|Ilford|Black & white|7.3
+26.bin|HP5 Plus 400|Ilford|Black & white|8.4
+27.bin|HPS 800|Ilford|Black & white|8.4
+28.bin|Pan F Plus 50|Ilford|Black & white|8.6
+29.bin|XP2|Ilford|Black & white|6.3
+30.bin|BW400CN|Kodak|Black & white|5.5
+31.bin|ColorPlus 200|Kodak|Colour|-1.0
+32.bin|Ektachrome 100VS|Kodak|Slide|4.6
+33.bin|Ektachrome E100GX|Kodak|Slide|8.3
+34.bin|Ektar 100|Kodak|Colour|5.8
+35.bin|Elite 100 X-Pro|Kodak|Cross-process|15.0
+36.bin|Elite Chrome 200|Kodak|Slide|6.3
+37.bin|Elite Chrome 400|Kodak|Slide|10.5
+38.bin|Elite Color 200|Kodak|Colour|8.8
+39.bin|Elite Color 400|Kodak|Colour|10.5
+40.bin|Elite Extracolor 100|Kodak|Slide|10.7
+41.bin|Gold 200|Kodak|Colour|1.6
+42.bin|Gold 200 Warm|Kodak|Colour|-1.0
+43.bin|HIE Infrared|Kodak|Infrared|19.6
+44.bin|Kodachrome 200|Kodak|Slide|9.6
+45.bin|Kodachrome 25|Kodak|Slide|20.8
+46.bin|Kodachrome 64|Kodak|Slide|3.3
+47.bin|Portra 160|Kodak|Colour|-1.0
+48.bin|Portra 160 NC|Kodak|Colour|15.6
+49.bin|Portra 160 VC|Kodak|Colour|17.6
+50.bin|Portra 400|Kodak|Colour|1.1
+51.bin|Portra 400 NC|Kodak|Colour|17.9
+52.bin|Portra 400 UC|Kodak|Colour|17.2
+53.bin|Portra 400 VC|Kodak|Colour|16.6
+54.bin|Portra 800|Kodak|Colour|-1.0
+55.bin|Portra 800 HC|Kodak|Colour|16.2
+56.bin|T-Max 100|Kodak|Black & white|5.6
+57.bin|T-Max 3200|Kodak|Colour|6.4
+58.bin|T-Max 400|Kodak|Black & white|8.2
+59.bin|Tri-X 400|Kodak|Colour|8.1
+60.bin|Ultramax 400|Kodak|Colour|-1.0
+61.bin|160C|Fujifilm|Colour|9.6
+62.bin|800Z|Fujifilm|Colour|13.0
+63.bin|Astia 100|Fujifilm|Slide|2.2
+64.bin|Astia 100F|Fujifilm|Slide|11.5
+65.bin|C200|Fujifilm|Colour|-1.0
+66.bin|FP-100C|Fujifilm|Instant|9.7
+67.bin|FP-100C Cool|Fujifilm|Instant|12.0
+68.bin|FP-100C Negative|Fujifilm|Instant|18.4
+69.bin|FP-100C Slide|Fujifilm|Slide|10.5
+70.bin|FP-3000B|Fujifilm|Instant|10.6
+71.bin|FP-3000B HC|Fujifilm|Instant|15.2
+72.bin|FP-3000B Negative|Fujifilm|Instant|12.7
+73.bin|FP-3000B Negative Early|Fujifilm|Instant|16.3
+74.bin|Neopan 1600|Fujifilm|Colour|12.2
+75.bin|Neopan Acros 100|Fujifilm|Black & white|4.8
+76.bin|Pro 400H|Fujifilm|Colour|-1.0
+77.bin|Provia 100|Fujifilm|Slide|2.9
+78.bin|Provia 100F|Fujifilm|Slide|6.3
+79.bin|Provia 400F|Fujifilm|Slide|9.3
+80.bin|Provia 400X|Fujifilm|Slide|10.6
+81.bin|Sensia 100|Fujifilm|Slide|10.1
+82.bin|Superia 100|Fujifilm|Colour|16.4
+83.bin|Superia 1600|Fujifilm|Colour|13.1
+84.bin|Superia 200|Fujifilm|Colour|12.1
+85.bin|Superia 200 X-Pro|Fujifilm|Cross-process|23.8
+86.bin|Superia 400|Fujifilm|Colour|0.6
+87.bin|Superia 800|Fujifilm|Colour|17.4
+88.bin|Superia HG 1600|Fujifilm|Colour|6.1
+89.bin|Superia Reala 100|Fujifilm|Colour|13.6
+90.bin|Superia X-TRA 400|Fujifilm|Colour|-1.0
+91.bin|Superia X-TRA 800|Fujifilm|Colour|13.4
+92.bin|Velvia 100|Fujifilm|Slide|4.0
+93.bin|Velvia 50|Fujifilm|Slide|4.7
+94.bin|X-Trans Acros|Fujifilm|Black & white|7.2
+95.bin|X-Trans Acros + G|Fujifilm|Black & white|6.7
+96.bin|X-Trans Acros + R|Fujifilm|Black & white|7.6
+97.bin|X-Trans Acros + Ye|Fujifilm|Black & white|7.5
+98.bin|X-Trans Astia|Fujifilm|Colour|10.8
+99.bin|X-Trans Classic Chrome|Fujifilm|Colour|10.4
+100.bin|X-Trans Mono|Fujifilm|Black & white|6.4
+101.bin|X-Trans Mono + G|Fujifilm|Black & white|6.3
+102.bin|X-Trans Mono + R|Fujifilm|Black & white|8.0
+103.bin|X-Trans Mono + Ye|Fujifilm|Black & white|6.8
+104.bin|X-Trans Pro Neg Hi|Fujifilm|Colour|11.3
+105.bin|X-Trans Pro Neg Std|Fujifilm|Colour|9.6
+106.bin|X-Trans Provia|Fujifilm|Colour|11.3
+107.bin|X-Trans Sepia|Fujifilm|Black & white|8.0
+108.bin|X-Trans Velvia|Fujifilm|Colour|13.1
+109.bin|CineStill 800T|Cine|Cine|-1.0
+110.bin|CineStill 800T Cool|Cine|Cine|-1.0
+111.bin|CineStill 50D|Cine|Cine|-1.0
+112.bin|CineStill 400D|Cine|Cine|-1.0
+113.bin|CineStill BwXX|Cine|Cine|-1.0
+114.bin|Kodak Vision3 50D|Cine|Cine|-1.0
+115.bin|Kodak Vision3 250D|Cine|Cine|-1.0
+116.bin|Kodak Vision3 200T|Cine|Cine|-1.0
+117.bin|Kodak Vision3 500T|Cine|Cine|-1.0
+118.bin|Kodak Vision2 200T 5217|Cine|Cine|-1.0
+119.bin|Kodak Vision2 500T 5218|Cine|Cine|-1.0
+120.bin|Kodak Vision 500T 5279|Cine|Cine|-1.0
+121.bin|Kodak EXR 5248|Cine|Cine|-1.0
+122.bin|Kodak Ektachrome 100D 7294|Cine|Cine|-1.0
+123.bin|Eastman Double-X 5222|Cine|Cine|-1.0
+124.bin|Kodak Tri-X Reversal 7266|Cine|Cine|-1.0
+125.bin|ORWO UN54|Cine|Cine|-1.0
+126.bin|Fuji Eterna 500T|Cine|Cine|-1.0
+127.bin|Fuji Eterna Vivid 160|Cine|Cine|-1.0
+128.bin|Fuji Reala 500D|Cine|Cine|-1.0
+129.bin|Fuji Eterna 250D|Cine|Cine|-1.0
+130.bin|Fuji Eterna Bleach Bypass|Cine|Cine|-1.0
+131.bin|Kodak Ektar 100|Cine|Cine|0.6
+132.bin|Kodachrome 64|Cine|Cine|3.3
+133.bin|Kodachrome 200|Cine|Cine|9.6
+134.bin|Kodachrome 40 Super 8|Cine|Cine|-1.0
+135.bin|Teal & Orange|Cine|Cine|-1.0
+136.bin|Bleach Bypass|Cine|Cine|-1.0
+137.bin|Golden Hour|Cine|Cine|-1.0
+138.bin|Blue Hour|Cine|Cine|-1.0
+139.bin|Day for Night|Cine|Cine|-1.0
+140.bin|Neon Noir|Cine|Cine|-1.0
+141.bin|Technicolor|Cine|Cine|-1.0
+142.bin|Technicolor 2-Strip|Cine|Cine|-1.0
+143.bin|70s Faded|Cine|Cine|-1.0
+144.bin|Super 8|Cine|Cine|-1.0
+145.bin|Matrix Green|Cine|Cine|-1.0
+146.bin|Pastel Symmetry|Cine|Cine|-1.0
+147.bin|Desert|Cine|Cine|-1.0
+148.bin|Fuji 3510 Print|Cine|Cinema print|17.0
+149.bin|Fuji 3513 Print|Cine|Cinema print|17.7
+150.bin|Kodak 2383 Print|Cine|Cinema print|17.3
+151.bin|Kodak 2393 Print|Cine|Cinema print|18.9
+152.bin|Kodak 2302 B&W Print|Cine|Cine|-1.0

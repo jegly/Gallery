@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.gal.data.raw.RawFormats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,6 +29,30 @@ import org.json.JSONObject
 import java.io.File
 import kotlin.math.abs
 import kotlin.math.max
+
+/** How "Save copy" writes the edit. Sizes: 0 original, 1 long edge in pixels, 2 percent. */
+data class ExportOptions(
+    val format: ExportFormat = ExportFormat.JPEG,
+    val quality: Int = 92,
+    val size: Int = 0,
+    val longEdge: Int = 3000,
+    val percent: Int = 50,
+    val sharpen: Boolean = false,
+    val sharpenAmount: Float = 0.8f,
+    val keepMetadata: Boolean = true,
+) {
+    fun json(): String = JSONObject()
+        .put("format", format.engine).put("quality", quality).put("size", size).put("longEdge", longEdge)
+        .put("percent", percent).put("sharpen", sharpen).put("sharpenAmount", sharpenAmount.toDouble())
+        .put("keepExif", keepMetadata)
+        .toString()
+}
+
+enum class ExportFormat(val label: String, val engine: Int, val extension: String, val mime: String) {
+    JPEG("JPEG", 0, "jpg", "image/jpeg"),
+    PNG("PNG", 1, "png", "image/png"),
+    TIFF("TIFF", 2, "tif", "image/tiff"),
+}
 
 enum class EditorTool(val label: String) {
     PRESETS("Presets"), LIGHT("Light"), CURVE("Curve"), COLOUR("Colour"), DETAIL("Detail"), CROP("Crop"),
@@ -63,12 +88,17 @@ class EditorViewModel(app: Application, savedState: SavedStateHandle) : AndroidV
     var cropAspect by mutableStateOf(0f)
 
     var isRaw by mutableStateOf(false); private set
+    /** The photo's full size in pixels, before any crop. */
+    var photoSize by mutableStateOf<Pair<Int, Int>?>(null); private set
     var asShotKelvin by mutableStateOf<Float?>(null); private set
     var canUndo by mutableStateOf(false); private set
     var canRedo by mutableStateOf(false); private set
 
-    /** Engine format for writing back over the original (0 JPEG, 1 PNG, 2 TIFF), or null when it can't be. */
-    private var inPlaceFormat: Int? = null
+    /** Format for writing back over the original, or null when it can't be (RAW, HEIC, not in MediaStore…). */
+    private var inPlaceFormat: ExportFormat? = null
+    /** The original's file name without its extension, for naming copies. */
+    private var sourceStem = "photo"
+    var exportOptions by mutableStateOf(ExportOptions())
     val canSaveInPlace get() = inPlaceFormat != null
 
     val catalog: EditorCatalog get() = EditorCatalog.instance
@@ -94,6 +124,7 @@ class EditorViewModel(app: Application, savedState: SavedStateHandle) : AndroidV
                     JSONObject(GrainhouseNative.info(handle))
                 }
                 isRaw = info.getBoolean("raw")
+                photoSize = info.getInt("w") to info.getInt("h")
                 asShotKelvin = info.optDouble("asShotKelvin").takeIf { !it.isNaN() }?.toFloat()
                 if (isRaw) inPlaceFormat = null
                 val start = withContext(native) { catalog.defaults }
@@ -241,7 +272,7 @@ class EditorViewModel(app: Application, savedState: SavedStateHandle) : AndroidV
      * (HEIC, WebP, AVIF…) go through Android's decoder into a lossless PNG first. Returns the file and
      * the engine format for saving back over the original, if that is possible.
      */
-    private fun stage(): Pair<File, Int?> {
+    private fun stage(): Pair<File, ExportFormat?> {
         workDir.deleteRecursively()
         workDir.mkdirs()
         val mime = resolver.getType(sourceUri)?.lowercase().orEmpty()
@@ -249,10 +280,13 @@ class EditorViewModel(app: Application, savedState: SavedStateHandle) : AndroidV
             if (it.moveToFirst()) it.getString(0) else null
         }.orEmpty()
         val ext = name.substringAfterLast('.', "").lowercase().filter { it.isLetterOrDigit() }.take(5)
-        val engineReads = mime in ENGINE_MIMES || ext in RAW_EXTENSIONS
-        val inPlace = if (sourceUri.authority == MediaStore.AUTHORITY) IN_PLACE_FORMATS[mime] else null
-        if (engineReads) {
-            val out = File(workDir, "source.${ext.ifEmpty { ENGINE_MIMES[mime] ?: "jpg" }}")
+        sourceStem = name.substringBeforeLast('.').filter { it.isLetterOrDigit() || it in "-_ " }.take(60).ifBlank { "photo" }
+        val raw = RawFormats.isRaw(name, mime)
+        val inPlace = if (sourceUri.authority == MediaStore.AUTHORITY && !raw) IN_PLACE_FORMATS[mime] else null
+        if (raw || mime in ENGINE_MIMES) {
+            // the engine tells RAW files apart by their extension
+            val fileExt = if (raw) ext.takeIf { it in RAW_EXTENSIONS } ?: "dng" else ENGINE_MIMES.getValue(mime)
+            val out = File(workDir, "source.$fileExt")
             resolver.openInputStream(sourceUri)?.use { input -> out.outputStream().use { input.copyTo(it) } }
                 ?: error("Couldn't read this photo")
             return out to inPlace
@@ -271,8 +305,9 @@ class EditorViewModel(app: Application, savedState: SavedStateHandle) : AndroidV
     /** Writes the edit over the original. Call after the user granted write access (createWriteRequest). */
     fun saveInPlace() {
         val format = inPlaceFormat ?: return
-        save {
-            val file = export(format)
+        save(finish = true) {
+            // same format, full size, metadata kept: only the pixels change
+            val file = export(ExportOptions(format = format, quality = JPEG_QUALITY))
             val out = resolver.openOutputStream(sourceUri, "wt") ?: error("Couldn't open the photo for writing")
             out.use { o -> file.inputStream().use { it.copyTo(o) } }
             // bump the modified time so the library (and image caches keyed on it) refresh
@@ -287,13 +322,14 @@ class EditorViewModel(app: Application, savedState: SavedStateHandle) : AndroidV
         }
     }
 
-    /** Saves the edit as a new JPEG in Pictures/Gal, leaving the original alone. */
+    /** Saves the edit as a new file in Pictures/Gal with [exportOptions], leaving the original alone. */
     fun saveCopy() {
-        save {
-            val file = export(0)
+        val opts = exportOptions
+        save(finish = false) {
+            val file = export(opts)
             val cv = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, "gal_edit_${System.currentTimeMillis()}.jpg")
-                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.DISPLAY_NAME, "${sourceStem}_edit_${System.currentTimeMillis() / 1000}.${opts.format.extension}")
+                put(MediaStore.Images.Media.MIME_TYPE, opts.format.mime)
                 put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Gal")
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             }
@@ -315,22 +351,23 @@ class EditorViewModel(app: Application, savedState: SavedStateHandle) : AndroidV
         message = reason?.let { "Couldn't request write access: $it" } ?: "Save cancelled"
     }
 
-    private fun save(block: suspend () -> String) {
+    /** Runs a save; [finish] closes the editor afterwards (a copy keeps it open for another). */
+    private fun save(finish: Boolean, block: suspend () -> String) {
         if (saving || doc == null) return
         saving = true
         viewModelScope.launch {
             val result = runCatching { withContext(Dispatchers.IO) { block() } }
             saving = false
-            result.onSuccess { message = it; done = true }
+            result.onSuccess { message = it; if (finish) done = true }
                 .onFailure { message = "Save failed: ${it.message ?: it.javaClass.simpleName}" }
         }
     }
 
-    /** The edit at full size, encoded by the engine into the cache. */
-    private suspend fun export(format: Int): File {
+    /** The edit rendered from the full-size photo and encoded by the engine into the cache. */
+    private suspend fun export(opts: ExportOptions): File {
         val d = checkNotNull(doc)
-        val out = File(workDir, "export.${listOf("jpg", "png", "tif")[format]}")
-        withContext(native) { GrainhouseNative.export(handle, d.json, out.absolutePath, format, JPEG_QUALITY) }
+        val out = File(workDir, "export.${opts.format.extension}")
+        withContext(native) { GrainhouseNative.export(handle, d.json, out.absolutePath, opts.json()) }
         return out
     }
 
@@ -356,9 +393,10 @@ class EditorViewModel(app: Application, savedState: SavedStateHandle) : AndroidV
         private const val JPEG_KELVIN = 6500f
 
         private val ENGINE_MIMES = mapOf("image/jpeg" to "jpg", "image/png" to "png", "image/tiff" to "tif")
-        private val IN_PLACE_FORMATS = mapOf("image/jpeg" to 0, "image/png" to 1, "image/tiff" to 2)
+        private val IN_PLACE_FORMATS = mapOf("image/jpeg" to ExportFormat.JPEG, "image/png" to ExportFormat.PNG, "image/tiff" to ExportFormat.TIFF)
         private val RAW_EXTENSIONS = setOf(
             "arw", "srf", "sr2", "dng", "cr2", "cr3", "nef", "nrw", "raf", "orf", "rw2", "pef", "srw", "3fr", "iiq", "erf", "mos",
+            "crw", "rwl", "fff", "mef", "kdc", "dcr",
         )
     }
 }
