@@ -98,11 +98,15 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
+import androidx.media3.common.VideoSize
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.gal.model.Media
 import com.gal.security.UriValidator
+import com.gal.ui.screens.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -120,6 +124,8 @@ fun LocalVideoPlayer(
     val validator = remember { UriValidator() }
     val safeUri = remember(media.uri) { validator.requireLocal(media.uri) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val settings by settingsViewModel.state.collectAsStateWithLifecycle()
 
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
@@ -210,6 +216,30 @@ fun LocalVideoPlayer(
             onDispose { activity.removeOnPictureInPictureModeChangedListener(pipListener) }
         } else {
             onDispose { }
+        }
+    }
+
+    // Keep the activity's PiP params in sync with the PiP settings and the playing video, so
+    // the system can enter PiP by itself (Android 12+) when the user leaves the app mid-playback.
+    DisposableEffect(activity, exoPlayer, settings.pipAutoEnter, settings.pipSeamlessResize, isPlaying, isEnded) {
+        if (activity == null) return@DisposableEffect onDispose { }
+        val autoEnter = settings.pipAutoEnter && isPlaying && !isEnded
+        val seamless = settings.pipSeamlessResize
+        val update = {
+            runCatching { activity.setPictureInPictureParams(pipParams(exoPlayer, autoEnter, seamless)) }
+        }
+        update()
+        val listener = object : Player.Listener {
+            override fun onVideoSizeChanged(videoSize: VideoSize) { update() }
+        }
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
+            runCatching {
+                activity.setPictureInPictureParams(
+                    PictureInPictureParams.Builder().setAutoEnterEnabled(false).build()
+                )
+            }
         }
     }
 
@@ -308,7 +338,8 @@ fun LocalVideoPlayer(
                             else                   -> Player.REPEAT_MODE_OFF
                         }
                     },
-                    onPip = { activity?.enterPip(exoPlayer) },
+                    onPip = { activity?.enterPip(exoPlayer, settings.pipSeamlessResize) },
+                    showPip = settings.pipButton,
                     tracks = tracks,
                     onTrackToggle = { override ->
                         val current = exoPlayer.trackSelectionParameters
@@ -442,6 +473,7 @@ private fun RightControlColumn(
     repeatMode: Int,
     onRepeatCycle: () -> Unit,
     onPip: () -> Unit,
+    showPip: Boolean,
     tracks: Tracks?,
     onTrackToggle: (TrackSelectionOverride?) -> Unit,
     onCaptureFrame: () -> Unit,
@@ -515,11 +547,13 @@ private fun RightControlColumn(
             )
 
             // Picture in Picture
-            ControlButton(
-                icon = Icons.Outlined.PictureInPictureAlt,
-                label = "PiP",
-                onClick = onPip,
-            )
+            if (showPip) {
+                ControlButton(
+                    icon = Icons.Outlined.PictureInPictureAlt,
+                    label = "PiP",
+                    onClick = onPip,
+                )
+            }
 
             // Tracks (CC + audio) — only show if there is more than one of either
             val hasAlternateTracks = remember(tracks) {
@@ -794,18 +828,23 @@ private fun CenterOverlay(
     }
 }
 
-private fun Activity.enterPip(player: ExoPlayer) {
+private fun Activity.enterPip(player: ExoPlayer, seamlessResize: Boolean) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+    runCatching { enterPictureInPictureMode(pipParams(player, autoEnter = false, seamlessResize)) }
+}
+
+private fun pipParams(player: ExoPlayer, autoEnter: Boolean, seamlessResize: Boolean): PictureInPictureParams {
     val w = player.videoSize.width
     val h = player.videoSize.height
     // If the video metadata hasn't loaded yet (w/h == 0), fall back to 16:9 instead
     // of feeding 0/0 (Android coerces to 1:1, which looks square and wrong).
     val ratio = if (w > 0 && h > 0) Rational(w, h).coerceInPipRatio()
                 else Rational(16, 9)
-    val params = PictureInPictureParams.Builder()
+    return PictureInPictureParams.Builder()
         .setAspectRatio(ratio)
+        .setAutoEnterEnabled(autoEnter)
+        .setSeamlessResizeEnabled(seamlessResize)
         .build()
-    runCatching { enterPictureInPictureMode(params) }
 }
 
 private fun Rational.coerceInPipRatio(): Rational {
