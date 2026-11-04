@@ -58,11 +58,6 @@
     <fields>;
 }
 
-# ── Android Image Cropper (com.canhub.cropper) ───────────────────────────────
-# CropImageView is constructed both in code and can be referenced from XML
-# layout attributes; the library also uses reflection for its options.
--keep class com.canhub.cropper.** { *; }
-
 # ── Android framework ─────────────────────────────────────────────────────────
 # Parcelable CREATOR fields are looked up by the framework by exact name.
 -keepclassmembers class * implements android.os.Parcelable {
@@ -77,4 +72,11 @@
 # Resource IDs accessed by name (e.g. via Resources.getIdentifier).
 -keepclassmembers class **.R$* {
     public static <fields>;
+}
+
+# ── Editor engine (JNI) ───────────────────────────────────────────────────────
+# libgal_editor.so binds its functions by this exact class and method names
+# (Java_com_gal_editor_GrainhouseNative_*), so neither may be renamed or moved.
+-keep class com.gal.editor.GrainhouseNative {
+    native <methods>;
 }
