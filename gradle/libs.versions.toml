@@ -9,7 +9,6 @@ compose-bom = "2026.09.00"
 lifecycle = "2.11.0"
 navigation = "2.10.2"
 room = "2.8.5"
-cropper = "4.7.0"
 coil = "3.6.3"
 media3 = "1.11.1"
 exifinterface = "1.4.2"
@@ -50,7 +49,6 @@ hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", v
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hilt-navigation-compose" }
 
 # Room
-android-image-cropper = { group = "com.vanniktech", name = "android-image-cropper", version.ref = "cropper" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }

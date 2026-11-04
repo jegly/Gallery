@@ -1,3 +1,6 @@
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -5,9 +8,15 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// The editor engine is built for these ABIs (see "Editor engine" below).
+val editorCrateDir: File = rootProject.file("native/editor")
+val editorAbis: List<String> = listOf("arm64-v8a")
+
 android {
     namespace = "com.gal"
     compileSdk = 37
+    // the editor engine (native/editor) is built with this NDK
+    ndkVersion = "30.0.16248370"
 
     defaultConfig {
         applicationId = "com.gal"
@@ -19,7 +28,7 @@ android {
 
         // meow meow meow meow
         ndk {
-            abiFilters += "arm64-v8a"
+            abiFilters += editorAbis
         }
     }
 
@@ -57,6 +66,61 @@ android {
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
+    }
+}
+
+// ── Editor engine ────────────────────────────────────────────────────────────
+// native/editor is a Rust crate (Grainhouse's editing library behind a JNI bridge); cargo-ndk builds
+// libgal_editor.so for each ABI in abiFilters and the variant packages it like any other jniLib.
+
+/** rustup's cargo (Android Studio may not see rustup's PATH), else cargo on PATH; `CARGO` overrides. */
+val cargoExecutable: String = providers.environmentVariable("CARGO").orNull
+    ?: File(System.getProperty("user.home"), ".cargo/bin/cargo").takeIf { it.isFile }?.absolutePath
+    ?: "cargo"
+
+abstract class CargoNdkBuild : DefaultTask() {
+    @get:Inject abstract val execOperations: ExecOperations
+    @get:Input abstract val cargo: Property<String>
+    @get:Input abstract val crateDir: Property<String>
+    @get:Input abstract val ndkDir: Property<String>
+    @get:Input abstract val abis: ListProperty<String>
+    @get:Input abstract val apiLevel: Property<Int>
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun build() {
+        val crate = File(crateDir.get())
+        // --locked once the lock file is committed, so CI builds exactly the reviewed dependencies
+        val locked = if (File(crate, "Cargo.lock").isFile) listOf("--locked") else emptyList()
+        execOperations.exec {
+            workingDir(crate)
+            environment("ANDROID_NDK_HOME", ndkDir.get())
+            // no build paths in the library, so the same commit builds the same bytes anywhere
+            environment("CARGO_ENCODED_RUSTFLAGS", "--remap-path-prefix=${crate.absolutePath}=/gal-editor")
+            commandLine(
+                listOf(cargo.get(), "ndk") + abis.get().flatMap { listOf("-t", it) } +
+                    listOf("--platform", apiLevel.get().toString(), "-o", outputDir.get().asFile.absolutePath,
+                        "build", "--release") + locked,
+            )
+        }
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        val name = variant.name.replaceFirstChar { it.uppercase() }
+        val cargoBuild = tasks.register<CargoNdkBuild>("cargoBuildEditor$name") {
+            group = "rust"
+            description = "Builds libgal_editor.so for $editorAbis"
+            cargo.set(cargoExecutable)
+            crateDir.set(editorCrateDir.absolutePath)
+            ndkDir.set(androidComponents.sdkComponents.ndkDirectory.map { it.asFile.absolutePath })
+            abis.set(editorAbis)
+            apiLevel.set(33)
+            // cargo tracks its own inputs
+            outputs.upToDateWhen { false }
+        }
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(cargoBuild, CargoNdkBuild::outputDir)
     }
 }
 
@@ -127,7 +191,6 @@ dependencies {
     implementation(libs.material)
 
     // Core
-    implementation(libs.android.image.cropper)
     implementation(libs.core.ktx)
     implementation(libs.splashscreen)
     implementation(libs.documentfile)

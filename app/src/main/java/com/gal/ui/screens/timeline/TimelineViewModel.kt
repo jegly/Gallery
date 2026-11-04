@@ -10,6 +10,7 @@ import com.gal.data.repository.MediaRepository
 import com.gal.model.DateGroup
 import com.gal.model.Media
 import com.gal.model.MediaType
+import com.gal.ui.screens.settings.SettingsViewModel
 import com.gal.util.groupedByDay
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -63,8 +64,11 @@ class TimelineViewModel @Inject constructor(
         repository.timeline(),
         sortOrder,
         filterType,
-    ) { list, sort, filter ->
-        val filtered = when (filter) {
+        prefs.map { it[SettingsViewModel.KEY_SHOW_VIDEOS_TAB] ?: false },
+    ) { list, sort, filter, videosTab ->
+        // With the Videos tab on, videos live there, so "All" here means all photos.
+        val effective = if (videosTab && filter == FilterType.ALL) FilterType.PHOTOS else filter
+        val filtered = when (effective) {
             FilterType.ALL    -> list
             FilterType.PHOTOS -> list.filter { it.type == MediaType.IMAGE }
             FilterType.VIDEOS -> list.filter { it.type == MediaType.VIDEO }

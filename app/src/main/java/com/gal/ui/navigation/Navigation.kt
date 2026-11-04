@@ -16,9 +16,11 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.background
@@ -58,6 +60,7 @@ import com.gal.ui.screens.albums.AlbumsScreen
 import com.gal.ui.screens.duplicates.DuplicatesScreen
 import com.gal.ui.screens.editor.EditActivity
 import com.gal.ui.screens.favourites.FavouritesScreen
+import com.gal.ui.screens.videos.VideosScreen
 import com.gal.ui.screens.search.SearchScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -77,6 +80,7 @@ private data class TopLevelRoute(
 
 private val topLevelRoutes = listOf(
     TopLevelRoute("Photos",     "timeline",   Icons.Filled.PhotoLibrary,  Icons.Outlined.PhotoLibrary),
+    TopLevelRoute("Videos",     "videos",     Icons.Filled.VideoLibrary,  Icons.Outlined.VideoLibrary),
     TopLevelRoute("Albums",     "albums",     Icons.Filled.GridView,      Icons.Outlined.GridView),
     TopLevelRoute("Favourites", "favourites", Icons.Filled.Favorite,      Icons.Outlined.FavoriteBorder),
     TopLevelRoute("Search",     "search",     Icons.Filled.Search,        Icons.Outlined.Search),
@@ -106,6 +110,7 @@ fun GalNavHost(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
     val visibleRoutes = topLevelRoutes.filter {
         when (it.route) {
             "favourites" -> settings.showFavouritesTab
+            "videos"     -> settings.showVideosTab
             "search"     -> settings.showSearchTab
             else         -> true
         }
@@ -179,6 +184,11 @@ fun GalNavHost(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
                     onAlbumClick = { navController.navigate("album/${it.id}/${it.name}") },
                     onTrashClick = { navController.navigate("trash") },
                     onSettingsClick = { navController.navigate("settings") },
+                )
+            }
+            composable("videos") {
+                VideosScreen(
+                    onMediaClick = { navController.navigate("viewer/${it.id}/videos") },
                 )
             }
             composable("favourites") {

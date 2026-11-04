@@ -23,6 +23,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -42,6 +43,7 @@ class MediaRepository @Inject constructor(
     }
     fun timeline(): Flow<List<Media>> = dataSource.timeline()
     fun favourites(): Flow<List<Media>> = dataSource.favourites()
+    fun videos(): Flow<List<Media>> = dataSource.timeline().map { list -> list.filter { it.type == MediaType.VIDEO } }
     fun trash(): Flow<List<Media>> = dataSource.trash()
     fun albums(): Flow<List<Album>> = dataSource.albums()
     fun album(albumId: Long): Flow<List<Media>> = dataSource.album(albumId)
