@@ -15,13 +15,24 @@ No network. No cloud. No tracking.
     - Camera RAW previews (ARW, DNG, NEF, CR2, ORF, RAF, RW2 and more), shown from the JPEG preview embedded in the file
     - Albums organised by folder
     - Search by filename
-    - Photo editor — crop, rotate, brightness, contrast, saturation
+    - Photo editor powered by Grainhouse:
+        light and white balance with Auto, tone curve, colour mixer and grading,
+        clarity, texture, dehaze, sharpening, noise reduction, vignette,
+        crop, straighten and lens correction,
+        153 film stocks, 24 creative looks, camera looks,
+        diffusion filters, grain, halation, light leaks, frames,
+        gradient and radial local adjustments, presets,
+        undo and redo, press and hold to compare
+    - Edits RAW files (ARW, DNG, CR2, CR3, NEF, RAF, ORF, RW2 and more), plus HEIC, WebP and AVIF
+    - Save over the original, or save a copy as JPEG, PNG or TIFF at any size, with or without photo info
     - Pinch to zoom in viewer
     - Sort by date, modified, size, name
-    - Filter by photo or video
+    - Filter by photo or video, and an optional Videos tab
+    - Hide the Favourites and Search tabs
+    - Picture-in-picture with optional auto-enter when you leave the app
+    - Biometric lock
     - EXIF stripped on share
-    - Pretty themes and stuff
-    - PIP 
+    - Pretty themes and stuff, including Material You
 
 ## REQUIREMENTS
 
@@ -30,19 +41,22 @@ No network. No cloud. No tracking.
 
 ## BUILD
 
-    git clone https://github.com/jegly/gal.git
-    cd gal
+    Needs JDK 21, the Android SDK, Rust (rustup) with the aarch64-linux-android
+    target, cargo-ndk and NDK 30.0.16248370 (Gradle builds the editor engine with them)
+
+    git clone https://github.com/jegly/Gallery.git
+    cd Gallery
     ./gradlew assembleDebug
 
     APK output: app/build/outputs/apk/debug/app-debug.apk
 
 ## STACK
 
-    Kotlin + Jetpack Compose
+    Kotlin + Jetpack Compose (Material 3)
     Hilt, Room, DataStore
     Coil 3, Media3 ExoPlayer
-    
-    
+    Rust editor engine: Grainhouse's editing library (native/grainhouse, AGPL-3.0)
+        behind a small JNI bridge (native/editor)
 
 ## PERMISSIONS
 
@@ -51,7 +65,7 @@ No network. No cloud. No tracking.
     READ_MEDIA_VISUAL_USER_SELECTED
     MANAGE_MEDIA
 
-    No INTERNET permission.
+    No INTERNET or local network permission.
 
 ---
 
@@ -63,7 +77,7 @@ Release APKs use hybrid signing (APK Signature Scheme v3.2): the original app ke
 
 | File | SHA-256 |
 |---|---|
-| `Gallery-4.2.1-PQC-signed.apk` | *sha256:ae163dfbb18b92a3dca17d7c30eec601cd2800c871c87c82e3aa503c441ce3b0* |
+| `Gallery-4.2.3-PQC-signed.apk` | *sha256:304c313b043194fb44e771d01acc3b711226a97b28333745c2b502324df0d0db* |
 
 ### Signing certificate
 
@@ -81,6 +95,6 @@ On Android 17 and later the APK is also verified through its post-quantum APK Si
 Verify a download (`apksigner` from build-tools 37.0.0 on JDK 25 shows all three keys):
 
 ```bash
-sha256sum Gallery-4.2.1-PQC-signed.apk
-apksigner verify --print-certs Gallery-4.2.1-PQC-signed.apk | grep SHA-256
+sha256sum Gallery-4.2.3-PQC-signed.apk
+apksigner verify --print-certs Gallery-4.2.3-PQC-signed.apk | grep SHA-256
 ```
