@@ -64,6 +64,11 @@ data class SettingsState(
     val keepScreenOn: Boolean = false,
     val blockScreenshots: Boolean = false,
     val filterTouches: Boolean = true,
+    val showSearchTab: Boolean = true,
+    val showFavouritesTab: Boolean = true,
+    val pipButton: Boolean = true,
+    val pipAutoEnter: Boolean = false,
+    val pipSeamlessResize: Boolean = true,
     val themeMode: String = "system",
     val catppuccinAccent: String = "mauve",
     val draculaAccent: String = "purple",
@@ -88,7 +93,12 @@ class SettingsViewModel @Inject constructor(
         val KEY_KEEP_SCREEN_ON         = booleanPreferencesKey("keep_screen_on")
         val KEY_BLOCK_SCREENSHOTS      = booleanPreferencesKey("block_screenshots")
         val KEY_FILTER_TOUCHES         = booleanPreferencesKey("filter_touches")
-        val KEY_THEME_MODE             = stringPreferencesKey("theme_mode")
+        val KEY_SHOW_SEARCH_TAB        = booleanPreferencesKey("show_search_tab")
+        val KEY_SHOW_FAVOURITES_TAB    = booleanPreferencesKey("show_favourites_tab")
+        val KEY_PIP_BUTTON             = booleanPreferencesKey("pip_button")
+        val KEY_PIP_AUTO_ENTER         = booleanPreferencesKey("pip_auto_enter")
+        val KEY_PIP_SEAMLESS_RESIZE    = booleanPreferencesKey("pip_seamless_resize")
+        val KEY_THEME_MODE            = stringPreferencesKey("theme_mode")
         val KEY_CATPPUCCIN_ACCENT      = stringPreferencesKey("catppuccin_accent")
         val KEY_DRACULA_ACCENT         = stringPreferencesKey("dracula_accent")
         val KEY_PTYXIS_PALETTE         = stringPreferencesKey("ptyxis_palette")
@@ -107,7 +117,12 @@ class SettingsViewModel @Inject constructor(
             keepScreenOn         = p[KEY_KEEP_SCREEN_ON]         ?: false,
             blockScreenshots     = p[KEY_BLOCK_SCREENSHOTS]      ?: false,
             filterTouches        = p[KEY_FILTER_TOUCHES]         ?: true,
-            themeMode            = p[KEY_THEME_MODE]             ?: "system",
+            showSearchTab        = p[KEY_SHOW_SEARCH_TAB]        ?: true,
+            showFavouritesTab    = p[KEY_SHOW_FAVOURITES_TAB]    ?: true,
+            pipButton            = p[KEY_PIP_BUTTON]             ?: true,
+            pipAutoEnter         = p[KEY_PIP_AUTO_ENTER]         ?: false,
+            pipSeamlessResize    = p[KEY_PIP_SEAMLESS_RESIZE]    ?: true,
+            themeMode           = p[KEY_THEME_MODE]             ?: "system",
             catppuccinAccent     = p[KEY_CATPPUCCIN_ACCENT]      ?: "mauve",
             draculaAccent        = p[KEY_DRACULA_ACCENT]         ?: "purple",
             ptyxisPalette        = p[KEY_PTYXIS_PALETTE]         ?: "nord",
@@ -126,7 +141,12 @@ class SettingsViewModel @Inject constructor(
     fun setKeepScreenOn(v: Boolean)      = viewModelScope.launch { dataStore.edit { it[KEY_KEEP_SCREEN_ON]         = v } }
     fun setBlockScreenshots(v: Boolean)  = viewModelScope.launch { dataStore.edit { it[KEY_BLOCK_SCREENSHOTS]      = v } }
     fun setFilterTouches(v: Boolean)     = viewModelScope.launch { dataStore.edit { it[KEY_FILTER_TOUCHES]         = v } }
-    fun setThemeMode(v: String)          = viewModelScope.launch { dataStore.edit { it[KEY_THEME_MODE]             = v } }
+    fun setShowSearchTab(v: Boolean)     = viewModelScope.launch { dataStore.edit { it[KEY_SHOW_SEARCH_TAB]        = v } }
+    fun setShowFavouritesTab(v: Boolean) = viewModelScope.launch { dataStore.edit { it[KEY_SHOW_FAVOURITES_TAB]    = v } }
+    fun setPipButton(v: Boolean)         = viewModelScope.launch { dataStore.edit { it[KEY_PIP_BUTTON]             = v } }
+    fun setPipAutoEnter(v: Boolean)      = viewModelScope.launch { dataStore.edit { it[KEY_PIP_AUTO_ENTER]         = v } }
+    fun setPipSeamlessResize(v: Boolean) = viewModelScope.launch { dataStore.edit { it[KEY_PIP_SEAMLESS_RESIZE]    = v } }
+    fun setThemeMode(v: String)         = viewModelScope.launch { dataStore.edit { it[KEY_THEME_MODE]             = v } }
     fun setCatppuccinAccent(v: String)   = viewModelScope.launch { dataStore.edit { it[KEY_CATPPUCCIN_ACCENT]      = v } }
     fun setDraculaAccent(v: String)      = viewModelScope.launch { dataStore.edit { it[KEY_DRACULA_ACCENT]         = v } }
     fun setPtyxisPalette(v: String)      = viewModelScope.launch { dataStore.edit { it[KEY_PTYXIS_PALETTE]         = v } }
@@ -242,6 +262,40 @@ fun SettingsScreen(
                 subtitle = "Vibrate when long-pressing to select media",
                 checked = state.hapticFeedback,
                 onCheckedChange = { viewModel.setHapticFeedback(it) },
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            SectionHeader("Bottom bar")
+            SettingsToggle(
+                title = "Favourites tab",
+                subtitle = "Show the heart icon in the bottom bar",
+                checked = state.showFavouritesTab,
+                onCheckedChange = { viewModel.setShowFavouritesTab(it) },
+            )
+            SettingsToggle(
+                title = "Search tab",
+                subtitle = "Show the search icon in the bottom bar",
+                checked = state.showSearchTab,
+                onCheckedChange = { viewModel.setShowSearchTab(it) },
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            SectionHeader("Video picture-in-picture")
+            SettingsToggle(
+                title = "PiP button",
+                subtitle = "Show the picture-in-picture button in the video controls",
+                checked = state.pipButton,
+                onCheckedChange = { viewModel.setPipButton(it) },
+            )
+            SettingsToggle(
+                title = "Auto-enter PiP",
+                subtitle = "Shrink a playing video into a floating window when you leave the app",
+                checked = state.pipAutoEnter,
+                onCheckedChange = { viewModel.setPipAutoEnter(it) },
+            )
+            SettingsToggle(
+                title = "Smooth PiP resize",
+                subtitle = "Resize the floating window without restarting the video frame. Turn off if the video looks distorted",
+                checked = state.pipSeamlessResize,
+                onCheckedChange = { viewModel.setPipSeamlessResize(it) },
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             SectionHeader("Library")

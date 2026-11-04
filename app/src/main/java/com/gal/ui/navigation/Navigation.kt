@@ -59,7 +59,10 @@ import com.gal.ui.screens.duplicates.DuplicatesScreen
 import com.gal.ui.screens.editor.EditActivity
 import com.gal.ui.screens.favourites.FavouritesScreen
 import com.gal.ui.screens.search.SearchScreen
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gal.ui.screens.settings.SettingsScreen
+import com.gal.ui.screens.settings.SettingsViewModel
 import com.gal.ui.screens.timeline.TimelineScreen
 import com.gal.ui.screens.trash.TrashScreen
 import com.gal.ui.screens.viewer.IntentViewerScreen
@@ -96,7 +99,18 @@ fun GalNavHost(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showNav = topLevelRoutes.any { it.route == currentRoute }
+    // Hidden tabs only disappear from the bar; their routes stay registered. Wait for the
+    // stored settings to load so a hidden tab doesn't flash on launch.
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val settings by settingsViewModel.state.collectAsStateWithLifecycle()
+    val visibleRoutes = topLevelRoutes.filter {
+        when (it.route) {
+            "favourites" -> settings.showFavouritesTab
+            "search"     -> settings.showSearchTab
+            else         -> true
+        }
+    }
+    val showNav = settings.isLoaded && topLevelRoutes.any { it.route == currentRoute }
 
     LaunchedEffect(intentUri) {
         if (intentUri != null) {
@@ -245,7 +259,7 @@ fun GalNavHost(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
                 FloatingNavBar(
-                    routes = topLevelRoutes,
+                    routes = visibleRoutes,
                     selectedRoute = currentRoute,
                     onSelect = { dest ->
                         navController.navigate(dest.route) {

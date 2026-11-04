@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.gal.model.DateGroup
 import com.gal.model.Media
 import com.gal.model.MediaType
@@ -184,7 +185,15 @@ fun MediaCell(
             )
     ) {
         AsyncImage(
-            model = if (media.type == MediaType.VIDEO) videoThumbnail else media.uri,
+            // Key on dateModified so an in-place edit (crop, draw…) isn't masked by the cached old pixels.
+            model = if (media.type == MediaType.VIDEO) videoThumbnail
+            else remember(media.uri, media.dateModified) {
+                ImageRequest.Builder(context)
+                    .data(media.uri)
+                    .memoryCacheKey("grid:${media.uri}:${media.dateModified.time}")
+                    .diskCacheKey("grid:${media.uri}:${media.dateModified.time}")
+                    .build()
+            },
             contentDescription = media.displayName,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),

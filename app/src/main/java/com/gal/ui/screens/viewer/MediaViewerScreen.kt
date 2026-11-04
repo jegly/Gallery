@@ -95,6 +95,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.gal.data.repository.MediaRepository
 import com.gal.model.Media
 import com.gal.model.MediaType
@@ -233,7 +234,14 @@ fun MediaViewerScreen(
                     LaunchedEffect(page) { scale = 1f; offset = Offset.Zero }
 
                     AsyncImage(
-                        model = item.uri,
+                        // Key on dateModified so an in-place edit isn't masked by the cached old pixels.
+                        model = remember(item.uri, item.dateModified) {
+                            ImageRequest.Builder(context)
+                                .data(item.uri)
+                                .memoryCacheKey("view:${item.uri}:${item.dateModified.time}")
+                                .diskCacheKey("view:${item.uri}:${item.dateModified.time}")
+                                .build()
+                        },
                         contentDescription = item.displayName,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
