@@ -66,6 +66,7 @@ data class SettingsState(
     val filterTouches: Boolean = true,
     val showSearchTab: Boolean = true,
     val showFavouritesTab: Boolean = true,
+    val showVideosTab: Boolean = false,
     val pipButton: Boolean = true,
     val pipAutoEnter: Boolean = false,
     val pipSeamlessResize: Boolean = true,
@@ -95,6 +96,7 @@ class SettingsViewModel @Inject constructor(
         val KEY_FILTER_TOUCHES         = booleanPreferencesKey("filter_touches")
         val KEY_SHOW_SEARCH_TAB        = booleanPreferencesKey("show_search_tab")
         val KEY_SHOW_FAVOURITES_TAB    = booleanPreferencesKey("show_favourites_tab")
+        val KEY_SHOW_VIDEOS_TAB        = booleanPreferencesKey("show_videos_tab")
         val KEY_PIP_BUTTON             = booleanPreferencesKey("pip_button")
         val KEY_PIP_AUTO_ENTER         = booleanPreferencesKey("pip_auto_enter")
         val KEY_PIP_SEAMLESS_RESIZE    = booleanPreferencesKey("pip_seamless_resize")
@@ -119,6 +121,7 @@ class SettingsViewModel @Inject constructor(
             filterTouches        = p[KEY_FILTER_TOUCHES]         ?: true,
             showSearchTab        = p[KEY_SHOW_SEARCH_TAB]        ?: true,
             showFavouritesTab    = p[KEY_SHOW_FAVOURITES_TAB]    ?: true,
+            showVideosTab        = p[KEY_SHOW_VIDEOS_TAB]        ?: false,
             pipButton            = p[KEY_PIP_BUTTON]             ?: true,
             pipAutoEnter         = p[KEY_PIP_AUTO_ENTER]         ?: false,
             pipSeamlessResize    = p[KEY_PIP_SEAMLESS_RESIZE]    ?: true,
@@ -143,6 +146,7 @@ class SettingsViewModel @Inject constructor(
     fun setFilterTouches(v: Boolean)     = viewModelScope.launch { dataStore.edit { it[KEY_FILTER_TOUCHES]         = v } }
     fun setShowSearchTab(v: Boolean)     = viewModelScope.launch { dataStore.edit { it[KEY_SHOW_SEARCH_TAB]        = v } }
     fun setShowFavouritesTab(v: Boolean) = viewModelScope.launch { dataStore.edit { it[KEY_SHOW_FAVOURITES_TAB]    = v } }
+    fun setShowVideosTab(v: Boolean)     = viewModelScope.launch { dataStore.edit { it[KEY_SHOW_VIDEOS_TAB]        = v } }
     fun setPipButton(v: Boolean)         = viewModelScope.launch { dataStore.edit { it[KEY_PIP_BUTTON]             = v } }
     fun setPipAutoEnter(v: Boolean)      = viewModelScope.launch { dataStore.edit { it[KEY_PIP_AUTO_ENTER]         = v } }
     fun setPipSeamlessResize(v: Boolean) = viewModelScope.launch { dataStore.edit { it[KEY_PIP_SEAMLESS_RESIZE]    = v } }
@@ -265,6 +269,12 @@ fun SettingsScreen(
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             SectionHeader("Bottom bar")
+            SettingsToggle(
+                title = "Videos tab",
+                subtitle = "Show your videos in their own tab, and only photos in the Photos tab",
+                checked = state.showVideosTab,
+                onCheckedChange = { viewModel.setShowVideosTab(it) },
+            )
             SettingsToggle(
                 title = "Favourites tab",
                 subtitle = "Show the heart icon in the bottom bar",

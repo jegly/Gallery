@@ -123,6 +123,7 @@ class MediaViewerViewModel @Inject constructor(
         "trash" -> repository.trash()
         "album" -> repository.album(albumId ?: -1L)
         "favourites" -> repository.favourites()
+        "videos" -> repository.videos()
         else    -> repository.timeline()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
