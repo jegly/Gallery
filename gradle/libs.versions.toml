@@ -1,6 +1,6 @@
 [versions]
 # Direct pin: media3 / kotlinx-coroutines-guava pull an older Guava into the APK.
-guava = "33.7.2-android"
+guava = "33.8.0-android"
 agp = "9.5.0"
 kotlin = "2.4.21"
 ksp = "2.3.12"
