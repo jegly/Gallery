@@ -287,6 +287,8 @@ fun MediaViewerScreen(
                 MediaType.VIDEO -> LocalVideoPlayer(
                     media = item,
                     modifier = Modifier.fillMaxSize(),
+                    // Neighbouring pages are composed too; only the settled page plays.
+                    isActive = page == pagerState.settledPage,
                     onControlsToggled = { visible -> showControls = visible },
                 )
             }

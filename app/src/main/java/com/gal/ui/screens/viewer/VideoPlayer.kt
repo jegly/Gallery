@@ -117,6 +117,13 @@ import kotlin.math.abs
 fun LocalVideoPlayer(
     media: Media,
     modifier: Modifier = Modifier,
+    /**
+     * Whether this player is the one on screen. The media viewer's pager also composes the
+     * pages next to the visible one (and keeps recently visited pages for a while), so every
+     * page gets its own player: only the active one may play, take the screen-on flag or set
+     * the activity's PiP params. Otherwise an off-screen video plays its audio in the background.
+     */
+    isActive: Boolean = true,
     onControlsToggled: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -137,7 +144,7 @@ fun LocalVideoPlayer(
                 true,
             )
             repeatMode = Player.REPEAT_MODE_OFF
-            playWhenReady = true
+            playWhenReady = isActive
         }
     }
 
@@ -151,7 +158,34 @@ fun LocalVideoPlayer(
     }
 
     // ── Player state ────────────────────────────────────────────────────────
-    var isPlaying    by remember { mutableStateOf(true) }
+    var isPlaying    by remember { mutableStateOf(isActive) }
+
+    // Play when this page becomes the visible one, pause as soon as it isn't.
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            exoPlayer.play()
+            isPlaying = true
+        } else {
+            exoPlayer.pause()
+            isPlaying = false
+        }
+    }
+
+    // Leaving the app (home, app switch, screen off) pauses playback, unless the video went
+    // into picture-in-picture, which is meant to keep playing.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, exoPlayer) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP &&
+                activity?.isInPictureInPictureMode != true
+            ) {
+                exoPlayer.pause()
+                isPlaying = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var isEnded      by remember { mutableStateOf(false) }
     var position     by remember { mutableLongStateOf(0L) }
     var duration     by remember { mutableLongStateOf(1L) }
@@ -189,7 +223,10 @@ fun LocalVideoPlayer(
     // Uses View.keepScreenOn, not the window flag, so it doesn't fight the viewer's own
     // "keep screen on" setting (which owns FLAG_KEEP_SCREEN_ON).
     val hostView = androidx.compose.ui.platform.LocalView.current
-    DisposableEffect(exoPlayer, hostView) {
+    DisposableEffect(exoPlayer, hostView, isActive) {
+        // An off-screen page must not touch the flag: its dispose would clear it for the
+        // video that is actually playing.
+        if (!isActive) return@DisposableEffect onDispose { }
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) { hostView.keepScreenOn = playing }
         }
@@ -239,8 +276,9 @@ fun LocalVideoPlayer(
 
     // Keep the activity's PiP params in sync with the PiP settings and the playing video, so
     // the system can enter PiP by itself (Android 12+) when the user leaves the app mid-playback.
-    DisposableEffect(activity, exoPlayer, settings.pipAutoEnter, settings.pipSeamlessResize, isPlaying, isEnded) {
-        if (activity == null) return@DisposableEffect onDispose { }
+    DisposableEffect(activity, exoPlayer, settings.pipAutoEnter, settings.pipSeamlessResize, isPlaying, isEnded, isActive) {
+        // Only the visible video owns the activity's PiP params.
+        if (activity == null || !isActive) return@DisposableEffect onDispose { }
         val autoEnter = settings.pipAutoEnter && isPlaying && !isEnded
         val seamless = settings.pipSeamlessResize
         val update = {
