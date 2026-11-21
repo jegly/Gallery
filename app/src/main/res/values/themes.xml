@@ -6,4 +6,8 @@
         <item name="postSplashScreenTheme">@style/Theme.Gal.Base</item>
     </style>
     <style name="Theme.Gal.Base" parent="Theme.AppCompat.DayNight.NoActionBar" />
+    <!-- External viewer: no splash, black window so nothing flashes before the photo -->
+    <style name="Theme.Gal.Viewer" parent="Theme.Gal.Base">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
 </resources>

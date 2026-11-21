@@ -82,6 +82,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.APP_GALLERY" />
             </intent-filter>
+        </activity>
+
+        <!-- Photos/videos opened from other apps. Standard launch mode + empty affinity:
+             opens beside the caller, never inside Gal's singleTask main task, so Back
+             returns to the app that opened it. See ExternalViewerActivity. -->
+        <activity
+            android:name=".ui.screens.viewer.ExternalViewerActivity"
+            android:exported="true"
+            android:launchMode="standard"
+            android:taskAffinity=""
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboardHidden|uiMode"
+            android:theme="@style/Theme.Gal.Viewer">
             <!-- View local images/video only — no http/https/rtsp schemes -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

@@ -96,8 +96,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.gal.data.repository.MediaRepository
 import com.gal.model.Media
+import com.gal.ui.screens.timeline.timelineSections
+import kotlinx.coroutines.flow.map
 import com.gal.model.MediaType
 import com.gal.ui.actions.MediaActionsViewModel
 import com.gal.ui.components.AlbumPickerSheet
@@ -114,17 +118,23 @@ import javax.inject.Inject
 class MediaViewerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     repository: MediaRepository,
+    dataStore: DataStore<Preferences>,
 ) : ViewModel() {
     private val initialMediaId: Long = checkNotNull(savedStateHandle["mediaId"])
     private val source: String = savedStateHandle["source"] ?: "timeline"
     private val albumId: Long? = savedStateHandle["albumId"]
 
+    // Each source must be the same list, in the same order, as the grid the user tapped in;
+    // otherwise swiping lands on a photo that isn't next to this one in the grid.
     val mediaList = when (source) {
         "trash" -> repository.trash()
         "album" -> repository.album(albumId ?: -1L)
         "favourites" -> repository.favourites()
         "videos" -> repository.videos()
-        else    -> repository.timeline()
+        // Search / duplicates: every photo and video, newest capture first, unfiltered, so
+        // the tapped item is always in the list.
+        "all" -> repository.timeline()
+        else    -> timelineSections(repository, dataStore).map { groups -> groups.flatMap { it.items } }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val initialIndex get() =
@@ -225,6 +235,10 @@ fun MediaViewerScreen(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
             userScrollEnabled = true,
+            // Keyed by media id: when MediaStore adds or removes a row while the viewer is
+            // open (a new camera shot, a delete), the pager stays on the same photo instead of
+            // the same index, which would show a different photo.
+            key = { page -> mediaList.getOrNull(page)?.id ?: page.toLong() },
         ) { page ->
             val item = mediaList[page]
             when (item.type) {

@@ -2,6 +2,7 @@ package com.gal.data.raw
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -50,7 +51,8 @@ class RawPreviewFetcher(
                 if (read < jpeg.size) return@use null
                 decode(jpeg, pick, target)?.let { rotate(it, result.orientation.takeIf { o -> o > 1 } ?: exifOrientation(jpeg)) }
             }
-        } ?: thumbnailFallback()
+        } ?: platformDecode(target)
+        ?: thumbnailFallback()
         ?: error("No embedded preview found in $uri")
 
         ImageFetchResult(bitmap.asImage(), isSampled = true, dataSource = DataSource.DISK)
@@ -62,6 +64,24 @@ class RawPreviewFetcher(
         val opts = BitmapFactory.Options().apply { inSampleSize = sample }
         return BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size, opts)
     }
+
+    /**
+     * RAW files with no embedded JPEG (DNGs written by Camera2's DngCreator, which phone camera
+     * apps use, carry only sensor data): let the platform decoder develop the sensor data.
+     * ImageDecoder handles DNG and the common RAW formats through Skia's RAW codec.
+     */
+    private fun platformDecode(target: Int): Bitmap? = runCatching {
+        val source = ImageDecoder.createSource(options.context.contentResolver, uri)
+        ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            val longSide = maxOf(info.size.width, info.size.height)
+            var sample = 1
+            while (target != Int.MAX_VALUE && longSide / (sample * 2) >= target) sample *= 2
+            // Never hand Compose a bitmap bigger than the GPU can draw.
+            while (longSide / sample > MAX_DECODE_LONG_SIDE) sample *= 2
+            decoder.setTargetSampleSize(sample)
+        }
+    }.getOrNull()
 
     /** Last resort for RAW variants the walker can't map: the small EXIF thumbnail. */
     private fun thumbnailFallback(): Bitmap? = runCatching {
@@ -109,6 +129,7 @@ class RawPreviewFetcher(
     }
 
     private companion object {
+        const val MAX_DECODE_LONG_SIDE = 4096
         val COMMON_MIME = setOf(
             "image/jpeg", "image/png", "image/webp", "image/gif",
             "image/heic", "image/heif", "image/avif", "image/bmp",

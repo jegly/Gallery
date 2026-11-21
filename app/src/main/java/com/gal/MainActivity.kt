@@ -60,10 +60,6 @@ class MainActivity : FragmentActivity() {
     @Inject lateinit var refresher: MediaStoreRefresher
     private val settingsViewModel: SettingsViewModel by viewModels()
 
-    // Holds the URI from an external ACTION_VIEW intent so the composition can react to it.
-    // Reset to null after the navigation is consumed so the same URI can be re-opened later.
-    private val viewIntentUri = MutableStateFlow<Uri?>(null)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -75,13 +71,8 @@ class MainActivity : FragmentActivity() {
 
         enableEdgeToEdge()
 
-        if (intent?.action == Intent.ACTION_VIEW && intent.data != null) {
-            viewIntentUri.value = intent.data
-        }
-
         setContent {
             val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
-            val intentUri by viewIntentUri.collectAsStateWithLifecycle()
             val view = LocalView.current
 
             // App-wide screenshot blocking (FLAG_SECURE on the main window)
@@ -127,10 +118,7 @@ class MainActivity : FragmentActivity() {
                         }
 
                         if (isUnlocked || !settingsState.biometricLock) {
-                            GalApp(
-                                intentUri = intentUri,
-                                onIntentConsumed = { viewIntentUri.value = null },
-                            )
+                            GalApp()
                         } else {
                             Box(
                                 modifier = Modifier.fillMaxSize().navigationBarsPadding().statusBarsPadding(),
@@ -166,14 +154,7 @@ class MainActivity : FragmentActivity() {
         refresher.bump()
     }
 
-    // singleTask activities receive re-delivery here instead of onCreate when already running
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
-            viewIntentUri.value = intent.data
-        }
-    }
+    // ACTION_VIEW from other apps is handled by ExternalViewerActivity (see the manifest).
 
     private fun showTamperDialog() {
         android.app.AlertDialog.Builder(this)
@@ -216,7 +197,7 @@ class MainActivity : FragmentActivity() {
 }
 
 @Composable
-private fun GalApp(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
+private fun GalApp() {
     val context = LocalContext.current
     var hasPermission by remember {
         mutableStateOf(
@@ -230,7 +211,7 @@ private fun GalApp(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
     ) { results -> hasPermission = results.values.any { it } }
 
     if (hasPermission) {
-        GalNavHost(intentUri = intentUri, onIntentConsumed = onIntentConsumed)
+        GalNavHost()
     } else {
         PermissionScreen(onRequest = { launcher.launch(requiredPermissions()) })
     }

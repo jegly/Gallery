@@ -183,6 +183,24 @@ fun LocalVideoPlayer(
         onDispose { exoPlayer.removeListener(listener) }
     }
 
+    // Keep the screen on while the video is actually playing, so the system screen timeout
+    // doesn't dim and blank the display mid-film. Paused, ended or buffering-stalled playback
+    // lets the normal timeout apply again.
+    // Uses View.keepScreenOn, not the window flag, so it doesn't fight the viewer's own
+    // "keep screen on" setting (which owns FLAG_KEEP_SCREEN_ON).
+    val hostView = androidx.compose.ui.platform.LocalView.current
+    DisposableEffect(exoPlayer, hostView) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) { hostView.keepScreenOn = playing }
+        }
+        hostView.keepScreenOn = exoPlayer.isPlaying
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
+            hostView.keepScreenOn = false
+        }
+    }
+
     // Poll player state every 500ms while playing
     LaunchedEffect(isPlaying, isScrubbing) {
         while (isPlaying && !isScrubbing) {

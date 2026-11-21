@@ -22,6 +22,13 @@ data class Media(
     val duration: Long? = null, // ms, video only
     val isFavourite: Boolean = false,
     val isTrashed: Boolean = false,
+    /**
+     * When the photo/video was captured: MediaStore DATE_TAKEN (from EXIF / container metadata),
+     * else a date in the file name, else the file's modified time. This is the order people
+     * expect; [dateAdded] is only when MediaStore indexed the file, so after a restore or a bulk
+     * copy every item shares roughly the same dateAdded.
+     */
+    val dateTaken: Date = dateModified,
 )
 
 data class Album(

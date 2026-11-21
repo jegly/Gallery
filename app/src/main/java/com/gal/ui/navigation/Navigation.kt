@@ -68,7 +68,6 @@ import com.gal.ui.screens.settings.SettingsScreen
 import com.gal.ui.screens.settings.SettingsViewModel
 import com.gal.ui.screens.timeline.TimelineScreen
 import com.gal.ui.screens.trash.TrashScreen
-import com.gal.ui.screens.viewer.IntentViewerScreen
 import com.gal.ui.screens.viewer.MediaViewerScreen
 
 private data class TopLevelRoute(
@@ -99,7 +98,7 @@ val LocalFloatingNavBarPadding = compositionLocalOf<Dp> { 0.dp }
 private val FLOATING_NAV_BAR_HEIGHT = 72.dp
 
 @Composable
-fun GalNavHost(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
+fun GalNavHost() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -117,12 +116,7 @@ fun GalNavHost(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
     }
     val showNav = settings.isLoaded && topLevelRoutes.any { it.route == currentRoute }
 
-    LaunchedEffect(intentUri) {
-        if (intentUri != null) {
-            navController.navigate("intent_viewer/${Uri.encode(intentUri.toString())}")
-            onIntentConsumed()
-        }
-    }
+    // Photos opened from other apps (ACTION_VIEW) go to ExternalViewerActivity, not here.
 
     // The pill genuinely floats — content fills the full screen and the pill is overlaid
     // at the bottom. Screens read [LocalFloatingNavBarPadding] and add it to their
@@ -214,7 +208,7 @@ fun GalNavHost(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
             }
             composable("search") {
                 SearchScreen(
-                    onMediaClick = { navController.navigate("viewer/${it.id}/timeline") },
+                    onMediaClick = { navController.navigate("viewer/${it.id}/all") },
                 )
             }
             composable("trash") {
@@ -232,7 +226,7 @@ fun GalNavHost(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
             composable("duplicates") {
                 DuplicatesScreen(
                     onBack = { navController.popBackStack() },
-                    onMediaClick = { navController.navigate("viewer/${it.id}/timeline") },
+                    onMediaClick = { navController.navigate("viewer/${it.id}/all") },
                 )
             }
             composable(
@@ -249,16 +243,6 @@ fun GalNavHost(intentUri: Uri? = null, onIntentConsumed: () -> Unit = {}) {
                 MediaViewerScreen(
                     onBack = { navController.popBackStack() },
                     onEdit = { media -> EditActivity.launch(navController.context, media.uri) },
-                )
-            }
-            composable(
-                "intent_viewer/{uri}",
-                arguments = listOf(navArgument("uri") { type = NavType.StringType }),
-            ) { back ->
-                val encoded = back.arguments?.getString("uri") ?: return@composable
-                IntentViewerScreen(
-                    uri = Uri.parse(encoded),
-                    onBack = { navController.popBackStack() },
                 )
             }
             }   // close NavHost

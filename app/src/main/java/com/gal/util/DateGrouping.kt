@@ -8,13 +8,13 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Groups by calendar day using [pickDate] (defaults to [Media.dateAdded] — which is when
- * MediaStore first saw the file, the right signal for "newest in gallery first").
- * Newest day first; items within keep their incoming order.
+ * Groups by calendar day using [pickDate] (defaults to [Media.dateTaken], the capture time).
+ * Days appear in the order they first occur in the list and items keep their incoming order,
+ * so a newest-first list gives newest day first and an oldest-first list gives oldest first.
  */
 fun List<Media>.groupedByDay(
     now: Date = Date(),
-    pickDate: (Media) -> Date = { it.dateAdded },
+    pickDate: (Media) -> Date = { it.dateTaken },
 ): List<DateGroup> {
     if (isEmpty()) return emptyList()
     val sdfThisYear = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
@@ -33,8 +33,8 @@ fun List<Media>.groupedByDay(
     cal.time = now
     val thisYear = cal.get(Calendar.YEAR)
 
+    // groupBy keeps first-occurrence key order (LinkedHashMap).
     return groupBy { startOfDay(pickDate(it)) }
-        .toSortedMap(compareByDescending { it })
         .map { (key, items) ->
             val label = when (key) {
                 today -> "Today"
